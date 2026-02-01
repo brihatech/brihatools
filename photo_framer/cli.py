@@ -58,7 +58,7 @@ def parse_args():
     parser.add_argument(
         "--landscape-scale",
         type=float,
-        default=0.8,
+        default=1,
         help="Scale factor for landscape images relative to frame (default: 0.8)"
     )
     
