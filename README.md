@@ -2,15 +2,6 @@
 
 A powerful Python CLI tool designed to batch-process images by placing them uniformly onto a branded frame. It handles both portrait and landscape images with consistent scaling and centering, making it perfect for generating campaign or branding materials.
 
-## Features
-
-- **Batch Processing**: Process an entire directory of images at once.
-- **Smart Orientation**: Automatically detects portrait, landscape, and square images.
-- **Consistent Scaling**: Apply different scale factors for portrait and landscape images to ensure they fit the frame perfectly every time.
-- **High Quality**: Uses high-quality resampling (Lanczos) for image resizing.
-- **Configurable**: Easily adjust margins, scaling factors, and output paths via CLI arguments.
-- **Modern Architecture**: Built with a clean Control Plane / Data Plane design using Python and Pillow.
-
 ## Installation
 
 This project is managed with `uv`.
@@ -53,10 +44,6 @@ uv run photo-framer --frame ./frame.png --input ./input_images --output ./output
 ### Example
 
 To frame images with a smaller portrait scale (e.g., to leave more room for top/bottom branding):
-
-```bash
-uv run photo-framer --portrait-scale 0.6 --landscape-scale 0.75 --output ./campaign_v1
-```
 
 ## Project Structure
 
