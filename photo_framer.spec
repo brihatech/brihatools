@@ -43,5 +43,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # Add icon path here if you have one
+    icon='favicon.ico',  # Icon file (32x32 recommended)
+    # Author: brihatech
 )

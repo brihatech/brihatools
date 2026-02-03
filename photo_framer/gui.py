@@ -34,7 +34,8 @@ class PhotoFramerGUI:
         # Application state
         self.frame_path: Optional[Path] = None
         self.input_dir: Optional[Path] = None
-        self.output_dir: Optional[Path] = None
+        # Default output relative to CWD, resolved to absolute path
+        self.output_dir: Optional[Path] = Path("output-framed").resolve()
         self.scan_result: Optional[DirectoryScanResult] = None
         self.preview_generator: Optional[PreviewGenerator] = None
         self.current_preview_image: Optional[Image.Image] = None
@@ -42,7 +43,7 @@ class PhotoFramerGUI:
         
         # Default parameters
         self.portrait_scale = ctk.DoubleVar(value=0.7)
-        self.landscape_scale = ctk.DoubleVar(value=0.8)
+        self.landscape_scale = ctk.DoubleVar(value=0.9)
         self.output_format = ctk.StringVar(value="png")
         
         # Build UI
@@ -229,6 +230,37 @@ class PhotoFramerGUI:
         
         # === OUTPUT ===
         
+        # Output Folder
+        output_label = ctk.CTkLabel(
+            controls_frame,
+            text="Output Folder",
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        output_label.grid(row=row, column=0, pady=(0, 6), sticky="w")
+        row += 1
+        
+        output_btn = ctk.CTkButton(
+            controls_frame,
+            text="Choose Output Folder",
+            command=self._select_output_dir,
+            height=36,
+            font=ctk.CTkFont(size=14)
+        )
+        output_btn.grid(row=row, column=0, pady=(0, 4), sticky="ew")
+        row += 1
+        
+        # Display current output dir (truncated if long)
+        out_text = self.output_dir.name if self.output_dir else "Not selected"
+        self.output_dir_display = ctk.CTkLabel(
+            controls_frame,
+            text=f"./{out_text}",
+            text_color="gray50",
+            font=ctk.CTkFont(size=12),
+            anchor="w"
+        )
+        self.output_dir_display.grid(row=row, column=0, pady=(0, 16), sticky="ew")
+        row += 1
+        
         # Format
         format_label = ctk.CTkLabel(
             controls_frame,
@@ -391,6 +423,13 @@ class PhotoFramerGUI:
                 text_color="black"
             )
             
+            # Default output to sibling directory
+            self.output_dir = self.input_dir.parent / "output-framed"
+            self.output_dir_display.configure(
+                text=self.output_dir.name,
+                text_color="gray50"
+            )
+            
             # Show scanning status
             self.scan_status.configure(text="Scanning...", text_color="blue")
             
@@ -401,7 +440,39 @@ class PhotoFramerGUI:
                 # Update UI on main thread
                 self.window.after(0, lambda: self._on_scan_complete(result))
             
+            
             threading.Thread(target=scan_task, daemon=True).start()
+
+    def _select_output_dir(self):
+        """Handle output directory selection."""
+        # Try to start at parent of input dir to be helpful, or CWD
+        try:
+            initial = self.input_dir.parent if (self.input_dir and self.input_dir.exists()) else Path.cwd()
+        except:
+            initial = Path.cwd()
+            
+        dirname = filedialog.askdirectory(
+            title="Select Output Folder",
+            initialdir=str(initial)
+        )
+        
+        if dirname:
+            path = Path(dirname)
+            
+            # Prevent using input dir as output dir
+            if self.input_dir and path.resolve() == self.input_dir.resolve():
+                messagebox.showwarning(
+                    "Invalid Selection",
+                    "Output folder cannot be the same as input folder.\n"
+                    "Please select a different folder to prevent mixing original photos with framed ones."
+                )
+                return
+
+            self.output_dir = path
+            self.output_dir_display.configure(
+                text=self.output_dir.name,
+                text_color="black"
+            )
 
     def _on_scan_complete(self, result: DirectoryScanResult):
         """Handle scan completion on main thread."""
@@ -448,125 +519,117 @@ class PhotoFramerGUI:
     
     def _update_preview(self):
         """Update both portrait and landscape previews simultaneously."""
-        if not self.frame_path or not self.input_dir or not self.scan_result:
+        # Require at least a frame to show anything
+        if not self.frame_path:
             return
         
-        if self.scan_result.total_images == 0:
-            return
-        
+        # Load the raw frame image for fallback
+        raw_frame_img = None
         try:
-            # Create or reuse preview generator (avoiding recreation)
-            config = self._create_config()
-            if not self.preview_generator or self.preview_generator.config.frame_path != config.frame_path:
-                self.preview_generator = PreviewGenerator(config)
-            else:
-                # Update config for existing generator
-                self.preview_generator.update_config(config)
-            
-            # Generate portrait preview
-            if self.scan_result.sample_portrait:
-                portrait_img = self.preview_generator.generate_preview(self.scan_result.sample_portrait)
-                
-                if portrait_img:
-                    # Get container size
-                    self.portrait_preview_container.update_idletasks()
-                    container_width = self.portrait_preview_container.winfo_width()
-                    container_height = self.portrait_preview_container.winfo_height()
-                    
-                    # Prevent zero size issues during init
-                    if container_width > 10 and container_height > 10:
-                        # Prevent container from expanding
-                        self.portrait_preview_container.grid_propagate(False)
-                        
-                        max_w = container_width - 20
-                        max_h = container_height - 20
-                        
-                        # Resize for display
-                        display_img = self._resize_for_display(portrait_img, max_width=max_w, max_height=max_h)
-                        
-                        # Convert to CTkImage
-                        ctk_image = ctk.CTkImage(
-                            light_image=display_img,
-                            dark_image=display_img,
-                            size=display_img.size
-                        )
-                        
-                        self.portrait_preview_label.configure(
-                            image=ctk_image,
-                            text=""
-                        )
-                        self.portrait_preview_label.image = ctk_image  # Keep reference
-            else:
-                self.portrait_preview_label.configure(
-                    text="No portrait\nimages found",
-                    image=None
-                )
-            
-            # Generate landscape preview
-            if self.scan_result.sample_landscape:
-                landscape_img = self.preview_generator.generate_preview(self.scan_result.sample_landscape)
-                
-                if landscape_img:
-                    # Get container size
-                    self.landscape_preview_container.update_idletasks()
-                    container_width = self.landscape_preview_container.winfo_width()
-                    container_height = self.landscape_preview_container.winfo_height()
-                    
-                    # Prevent zero size issues during init
-                    if container_width > 10 and container_height > 10:
-                        # Prevent container from expanding
-                        self.landscape_preview_container.grid_propagate(False)
-                        
-                        max_w = container_width - 20
-                        max_h = container_height - 20
-                        
-                        # Resize for display
-                        display_img = self._resize_for_display(landscape_img, max_width=max_w, max_height=max_h)
-                        
-                        # Convert to CTkImage
-                        ctk_image = ctk.CTkImage(
-                            light_image=display_img,
-                            dark_image=display_img,
-                            size=display_img.size
-                        )
-                        
-                        self.landscape_preview_label.configure(
-                            image=ctk_image,
-                            text=""
-                        )
-                        self.landscape_preview_label.image = ctk_image  # Keep reference
-            else:
-                self.landscape_preview_label.configure(
-                    text="No landscape\nimages found",
-                    image=None
-                )
-                
+            raw_frame_img = Image.open(self.frame_path)
         except Exception as e:
-            logger.error(f"Error updating preview: {e}")
-            self.portrait_preview_label.configure(
-                text=f"Preview error:\n{str(e)}",
-                image=None
-            )
-            self.landscape_preview_label.configure(
-                text=f"Preview error:\n{str(e)}",
-                image=None
-            )
+            logger.error(f"Failed to load frame image: {e}")
+            return
+
+        # Prepare generator if we have inputs
+        if self.input_dir and self.scan_result and self.scan_result.total_images > 0:
+            try:
+                config = self._create_config()
+                if not self.preview_generator or self.preview_generator.config.frame_path != config.frame_path:
+                    self.preview_generator = PreviewGenerator(config)
+                else:
+                    self.preview_generator.update_config(config)
+            except Exception as e:
+                logger.error(f"Failed to init preview generator: {e}")
+                self.preview_generator = None
+
+        # --- Helper to render preview ---
+        def update_single_preview(sample_path, container, label, default_text):
+            final_img = None
+            
+            # Try to generate composite using sample
+            if sample_path and self.preview_generator:
+                final_img = self.preview_generator.generate_preview(sample_path)
+            
+            # Fallback to raw frame
+            if final_img is None:
+                final_img = raw_frame_img
+            
+            if final_img:
+                self._display_image_in_container(final_img, container, label)
+            else:
+                label.configure(text=default_text, image=None)
+
+        # Update Portrait
+        sample_p = self.scan_result.sample_portrait if (self.scan_result) else None
+        update_single_preview(
+            sample_p, 
+            self.portrait_preview_container, 
+            self.portrait_preview_label, 
+            "No portrait\nimages found"
+        )
+        
+        # Update Landscape
+        sample_l = self.scan_result.sample_landscape if (self.scan_result) else None
+        update_single_preview(
+            sample_l, 
+            self.landscape_preview_container, 
+            self.landscape_preview_label, 
+            "No landscape\nimages found"
+        )
+
+    def _display_image_in_container(self, img: Image.Image, container: ctk.CTkFrame, label: ctk.CTkLabel):
+        """Render an image into a container handling HiDPI scaling."""
+        container.update_idletasks()
+        container_width = container.winfo_width()
+        container_height = container.winfo_height()
+        
+        if container_width < 10 or container_height < 10:
+            return
+
+        # Prevent container from expanding
+        container.grid_propagate(False)
+        
+        # Get Monitor Scaling Factor
+        try:
+            scaling = container._get_widget_scaling()
+        except AttributeError:
+            scaling = 1.0
+        
+        # Padding (logical -> physical)
+        pad_phys = 40 * scaling
+        max_w_phys = max(1, container_width - pad_phys)
+        max_h_phys = max(1, container_height - pad_phys)
+        
+        # Resize (Physical)
+        display_img = self._resize_for_display(img, max_width=max_w_phys, max_height=max_h_phys)
+        
+        # Logical size for CTk
+        logical_size = (display_img.width / scaling, display_img.height / scaling)
+        
+        ctk_image = ctk.CTkImage(
+            light_image=display_img,
+            dark_image=display_img,
+            size=logical_size
+        )
+        
+        label.configure(image=ctk_image, text="")
+        label.image = ctk_image
     
     def _resize_for_display(self, img: Image.Image, max_width: int, max_height: int) -> Image.Image:
         """Resize image to fit display area while maintaining aspect ratio."""
         w, h = img.size
         ratio = min(max_width / w, max_height / h)
         
-        if ratio < 1:
-            new_size = (int(w * ratio), int(h * ratio))
-            return img.resize(new_size, Image.Resampling.LANCZOS)
-        
-        return img
+        # Always resize to fit (scale up or down) to ensure it fills the available space correctly
+        new_size = (int(w * ratio), int(h * ratio))
+        return img.resize(new_size, Image.Resampling.LANCZOS)
     
     def _create_config(self) -> FrameConfig:
         """Create FrameConfig from current UI state."""
         # Use temp output dir if not set
-        output_dir = self.output_dir or self.input_dir / "framed_output"
+        input_dir = self.input_dir or Path("input_images") # Fallback to prevent crash
+        output_dir = self.output_dir or input_dir / "framed_output"
         
         return FrameConfig(
             frame_path=self.frame_path,
@@ -588,7 +651,7 @@ class PhotoFramerGUI:
             messagebox.showerror("Error", "Please select a folder with photos first")
             return
         
-        # Ask for output directory on process
+        # Ensure output dir is set (it should be due to default)
         if not self.output_dir:
             dirname = filedialog.askdirectory(
                 title="Choose Save Folder for Framed Photos"
@@ -596,6 +659,16 @@ class PhotoFramerGUI:
             if not dirname:
                 return
             self.output_dir = Path(dirname)
+            
+        # SAFETY CHECK: Prevent writing to input directory
+        # This handles cases where user ignored warnings or paths resolved oddly
+        if self.input_dir and self.output_dir.resolve() == self.input_dir.resolve():
+             messagebox.showerror(
+                "Error",
+                "Output directory cannot be the same as input directory.\n"
+                "Please select a different output folder."
+            )
+             return
         
         # Disable process button
         self.process_btn.configure(state="disabled", text="Processing...")

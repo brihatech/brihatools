@@ -17,7 +17,7 @@ class FrameConfig:
     output_dir: Path
     margin_percent: float = 5.0  # Margin as % of frame size
     portrait_scale: float = 0.7  # Scale factor for portrait images
-    landscape_scale: float = 0.8  # Scale factor for landscape images
+    landscape_scale: float = 0.9  # Scale factor for landscape images
     quality: int = 95  # Output quality for JPEG (1-100)
     output_format: str = "png"  # Output format: png, jpg
     
