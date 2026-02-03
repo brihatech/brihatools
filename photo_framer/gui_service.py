@@ -122,6 +122,15 @@ class PreviewGenerator:
                 x = (frame_w - img_w) // 2
                 y = (frame_h - img_h) // 2
                 
+                # Apply vertical offset
+                if orientation == "portrait":
+                    offset_val = self.config.portrait_offset_y
+                else: 
+                    # Use landscape offset for square too
+                    offset_val = self.config.landscape_offset_y
+                
+                y += int(frame_h * offset_val)
+                
                 # Paste resized image onto frame
                 final_image.paste(resized_img, (x, y), resized_img)
                 

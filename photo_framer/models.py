@@ -17,7 +17,9 @@ class FrameConfig:
     output_dir: Path
     margin_percent: float = 5.0  # Margin as % of frame size
     portrait_scale: float = 0.7  # Scale factor for portrait images
+    portrait_offset_y: float = 0.0  # Vertical offset (-0.5 to 0.5)
     landscape_scale: float = 0.9  # Scale factor for landscape images
+    landscape_offset_y: float = 0.0  # Vertical offset (-0.5 to 0.5)
     quality: int = 95  # Output quality for JPEG (1-100)
     output_format: str = "png"  # Output format: png, jpg
     
@@ -48,6 +50,12 @@ class FrameConfig:
         
         if not 0 < self.landscape_scale <= 1:
             errors.append(f"Landscape scale must be between 0 and 1, got: {self.landscape_scale}")
+            
+        if not -1.0 <= self.portrait_offset_y <= 1.0:
+            errors.append(f"Portrait offset must be between -1 and 1")
+
+        if not -1.0 <= self.landscape_offset_y <= 1.0:
+            errors.append(f"Landscape offset must be between -1 and 1")
         
         if not 1 <= self.quality <= 100:
             errors.append(f"Quality must be between 1 and 100, got: {self.quality}")

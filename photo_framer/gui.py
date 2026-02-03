@@ -28,8 +28,9 @@ class PhotoFramerGUI:
         self.window.title("Photo Framer")
         
         # Set proper base size before layout
-        self.window.geometry("1280x820")
-        self.window.minsize(1100, 700)
+        # Set proper base size before layout
+        self.window.geometry("1100x700")
+        self.window.minsize(900, 600)
         
         # Application state
         self.frame_path: Optional[Path] = None
@@ -42,8 +43,11 @@ class PhotoFramerGUI:
         self._preview_job = None  # For debouncing
         
         # Default parameters
+        # Default parameters
         self.portrait_scale = ctk.DoubleVar(value=0.7)
+        self.portrait_offset = ctk.DoubleVar(value=0.0)
         self.landscape_scale = ctk.DoubleVar(value=0.9)
+        self.landscape_offset = ctk.DoubleVar(value=0.0)
         self.output_format = ctk.StringVar(value="png")
         
         # Build UI
@@ -51,7 +55,9 @@ class PhotoFramerGUI:
         
         # Bind parameter changes to preview update (minimal debounce for responsiveness)
         self.portrait_scale.trace_add("write", self._on_parameter_change)
+        self.portrait_offset.trace_add("write", self._on_parameter_change)
         self.landscape_scale.trace_add("write", self._on_parameter_change)
+        self.landscape_offset.trace_add("write", self._on_parameter_change)
         self.output_format.trace_add("write", self._on_parameter_change)
         
         # Maximize after layout is done
@@ -69,9 +75,9 @@ class PhotoFramerGUI:
         left_panel.grid(row=0, column=0, sticky="nsew")
         left_panel.grid_columnconfigure(0, weight=1)
         
-        # Regular frame (no scroll) with proper padding
+        # Regular frame (no scroll) with compact padding
         controls_frame = ctk.CTkFrame(left_panel, fg_color="transparent")
-        controls_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        controls_frame.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
         controls_frame.grid_columnconfigure(0, weight=1)
         
         row = 0
@@ -87,61 +93,45 @@ class PhotoFramerGUI:
         
         # === FILES SECTION ===
         # Frame Image
-        frame_label = ctk.CTkLabel(
-            controls_frame,
-            text="Frame Image",
-            font=ctk.CTkFont(size=14, weight="bold")
-        )
-        frame_label.grid(row=row, column=0, pady=(0, 6), sticky="w")
-        row += 1
-        
         frame_btn = ctk.CTkButton(
             controls_frame,
-            text="Choose Frame",
+            text="Choose Frame Image",
             command=self._select_frame,
-            height=36,
-            font=ctk.CTkFont(size=14)
+            height=32,
+            font=ctk.CTkFont(size=13)
         )
-        frame_btn.grid(row=row, column=0, pady=(0, 4), sticky="ew")
+        frame_btn.grid(row=row, column=0, pady=(0, 2), sticky="ew")
         row += 1
         
         self.frame_path_display = ctk.CTkLabel(
             controls_frame,
             text="No file selected",
             text_color="gray50",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             anchor="w"
         )
-        self.frame_path_display.grid(row=row, column=0, pady=(0, 16), sticky="ew")
+        self.frame_path_display.grid(row=row, column=0, pady=(0, 10), sticky="ew")
         row += 1
         
         # Photos Folder
-        folder_label = ctk.CTkLabel(
-            controls_frame,
-            text="Photos Folder",
-            font=ctk.CTkFont(size=14, weight="bold")
-        )
-        folder_label.grid(row=row, column=0, pady=(0, 6), sticky="w")
-        row += 1
-        
         folder_btn = ctk.CTkButton(
             controls_frame,
-            text="Choose Folder",
+            text="Choose Photos Folder",
             command=self._select_input_dir,
-            height=36,
-            font=ctk.CTkFont(size=14)
+            height=32,
+            font=ctk.CTkFont(size=13)
         )
-        folder_btn.grid(row=row, column=0, pady=(0, 4), sticky="ew")
+        folder_btn.grid(row=row, column=0, pady=(0, 2), sticky="ew")
         row += 1
         
         self.input_dir_display = ctk.CTkLabel(
             controls_frame,
             text="No folder selected",
             text_color="gray50",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             anchor="w"
         )
-        self.input_dir_display.grid(row=row, column=0, pady=(0, 4), sticky="ew")
+        self.input_dir_display.grid(row=row, column=0, pady=(0, 2), sticky="ew")
         row += 1
         
         # Status
@@ -149,29 +139,30 @@ class PhotoFramerGUI:
             controls_frame,
             text="",
             text_color="green",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             anchor="w"
         )
-        self.scan_status.grid(row=row, column=0, pady=(0, 20), sticky="ew")
+        self.scan_status.grid(row=row, column=0, pady=(0, 10), sticky="ew")
         row += 1
         
         # Separator
         sep1 = ctk.CTkFrame(controls_frame, height=1, fg_color="gray80")
-        sep1.grid(row=row, column=0, pady=(0, 16), sticky="ew")
+        sep1.grid(row=row, column=0, pady=(0, 10), sticky="ew")
         row += 1
         
+        # === ORIENTATION CONTROLS ===
         # === ORIENTATION CONTROLS ===
         # Portrait
         portrait_label = ctk.CTkLabel(
             controls_frame,
-            text="Portrait Size",
-            font=ctk.CTkFont(size=14)
+            text="Portrait Settings",
+            font=ctk.CTkFont(size=13, weight="bold")
         )
-        portrait_label.grid(row=row, column=0, pady=(0, 6), sticky="w")
+        portrait_label.grid(row=row, column=0, pady=(0, 4), sticky="w")
         row += 1
         
         portrait_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
-        portrait_frame.grid(row=row, column=0, pady=(0, 12), sticky="ew")
+        portrait_frame.grid(row=row, column=0, pady=(0, 8), sticky="ew")
         portrait_frame.grid_columnconfigure(0, weight=1)
         
         self.portrait_slider = ctk.CTkSlider(
@@ -191,18 +182,44 @@ class PhotoFramerGUI:
         )
         self.portrait_value_label.grid(row=0, column=1)
         row += 1
+
+        # Portrait Offset
+        p_offset_label = ctk.CTkLabel(
+            portrait_frame,
+            text="V-Offset",
+            font=ctk.CTkFont(size=12)
+        )
+        p_offset_label.grid(row=1, column=0, sticky="w", padx=(0, 0), pady=(4, 0))
+        
+        self.portrait_offset_slider = ctk.CTkSlider(
+            portrait_frame,
+            from_=-0.3,
+            to=0.3,
+            variable=self.portrait_offset,
+            number_of_steps=60
+        )
+        self.portrait_offset_slider.grid(row=2, column=0, sticky="ew", padx=(0, 8))
+        
+        self.portrait_offset_value_label = ctk.CTkLabel(
+            portrait_frame,
+            text=f"{int(self.portrait_offset.get() * 100)}%",
+            width=45,
+            font=ctk.CTkFont(size=12)
+        )
+        self.portrait_offset_value_label.grid(row=2, column=1)
+        row += 1
         
         # Landscape
         landscape_label = ctk.CTkLabel(
             controls_frame,
-            text="Landscape Size",
-            font=ctk.CTkFont(size=14)
+            text="Landscape Settings",
+            font=ctk.CTkFont(size=13, weight="bold")
         )
-        landscape_label.grid(row=row, column=0, pady=(0, 6), sticky="w")
+        landscape_label.grid(row=row, column=0, pady=(0, 4), sticky="w")
         row += 1
         
         landscape_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
-        landscape_frame.grid(row=row, column=0, pady=(0, 20), sticky="ew")
+        landscape_frame.grid(row=row, column=0, pady=(0, 14), sticky="ew")
         landscape_frame.grid_columnconfigure(0, weight=1)
         
         self.landscape_slider = ctk.CTkSlider(
@@ -223,6 +240,32 @@ class PhotoFramerGUI:
         self.landscape_value_label.grid(row=0, column=1)
         row += 1
         
+        # Landscape Offset
+        l_offset_label = ctk.CTkLabel(
+            landscape_frame,
+            text="V-Offset",
+            font=ctk.CTkFont(size=12)
+        )
+        l_offset_label.grid(row=1, column=0, sticky="w", padx=(0, 0), pady=(4, 0))
+        
+        self.landscape_offset_slider = ctk.CTkSlider(
+            landscape_frame,
+            from_=-0.3,
+            to=0.3,
+            variable=self.landscape_offset,
+            number_of_steps=60
+        )
+        self.landscape_offset_slider.grid(row=2, column=0, sticky="ew", padx=(0, 8))
+        
+        self.landscape_offset_value_label = ctk.CTkLabel(
+            landscape_frame,
+            text=f"{int(self.landscape_offset.get() * 100)}%",
+            width=45,
+            font=ctk.CTkFont(size=12)
+        )
+        self.landscape_offset_value_label.grid(row=2, column=1)
+        row += 1
+        
         # Separator
         sep2 = ctk.CTkFrame(controls_frame, height=1, fg_color="gray80")
         sep2.grid(row=row, column=0, pady=(0, 16), sticky="ew")
@@ -230,23 +273,17 @@ class PhotoFramerGUI:
         
         # === OUTPUT ===
         
-        # Output Folder
-        output_label = ctk.CTkLabel(
-            controls_frame,
-            text="Output Folder",
-            font=ctk.CTkFont(size=14, weight="bold")
-        )
-        output_label.grid(row=row, column=0, pady=(0, 6), sticky="w")
-        row += 1
+        # === OUTPUT ===
         
+        # Output Folder
         output_btn = ctk.CTkButton(
             controls_frame,
-            text="Choose Output Folder",
+            text="Change Output Folder",
             command=self._select_output_dir,
-            height=36,
-            font=ctk.CTkFont(size=14)
+            height=32,
+            font=ctk.CTkFont(size=13)
         )
-        output_btn.grid(row=row, column=0, pady=(0, 4), sticky="ew")
+        output_btn.grid(row=row, column=0, pady=(0, 2), sticky="ew")
         row += 1
         
         # Display current output dir (truncated if long)
@@ -255,23 +292,15 @@ class PhotoFramerGUI:
             controls_frame,
             text=f"./{out_text}",
             text_color="gray50",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             anchor="w"
         )
-        self.output_dir_display.grid(row=row, column=0, pady=(0, 16), sticky="ew")
+        self.output_dir_display.grid(row=row, column=0, pady=(0, 10), sticky="ew")
         row += 1
         
         # Format
-        format_label = ctk.CTkLabel(
-            controls_frame,
-            text="Format",
-            font=ctk.CTkFont(size=14)
-        )
-        format_label.grid(row=row, column=0, pady=(0, 6), sticky="w")
-        row += 1
-        
         format_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
-        format_frame.grid(row=row, column=0, pady=(0, 24), sticky="w")
+        format_frame.grid(row=row, column=0, pady=(0, 14), sticky="w")
         
         png_radio = ctk.CTkRadioButton(
             format_frame,
@@ -297,7 +326,7 @@ class PhotoFramerGUI:
             controls_frame,
             text="PROCESS PHOTOS",
             font=ctk.CTkFont(size=14, weight="bold"),
-            height=48,
+            height=40,
             command=self._process_all
         )
         self.process_btn.grid(row=row, column=0, pady=(0, 0), sticky="ew")
@@ -504,8 +533,14 @@ class PhotoFramerGUI:
         self.portrait_value_label.configure(
             text=f"{int(self.portrait_scale.get() * 100)}%"
         )
+        self.portrait_offset_value_label.configure(
+            text=f"{int(self.portrait_offset.get() * 100)}%"
+        )
         self.landscape_value_label.configure(
             text=f"{int(self.landscape_scale.get() * 100)}%"
+        )
+        self.landscape_offset_value_label.configure(
+            text=f"{int(self.landscape_offset.get() * 100)}%"
         )
         
         # Debounce preview update
@@ -636,7 +671,9 @@ class PhotoFramerGUI:
             input_dir=self.input_dir,
             output_dir=output_dir,
             portrait_scale=self.portrait_scale.get(),
+            portrait_offset_y=self.portrait_offset.get(),
             landscape_scale=self.landscape_scale.get(),
+            landscape_offset_y=self.landscape_offset.get(),
             quality=100,  # Always full quality
             output_format=self.output_format.get()
         )
