@@ -1,6 +1,16 @@
 # Photo Framer
 
-A powerful Python CLI tool designed to batch-process images by placing them uniformly onto a branded frame. It handles both portrait and landscape images with consistent scaling and centering, making it perfect for generating campaign or branding materials.
+A professional desktop application for batch-processing images onto branded frames. Features an intuitive split-layout GUI designed for non-technical users, plus a powerful CLI for automation. Creates consistent, professional-looking framed photos perfect for campaigns, branding, and social media.
+
+## ✨ Features
+
+- **Split Layout Interface**: Controls on left, large preview on right
+- **Live Preview**: See exactly how photos will look before processing
+- **Portrait & Landscape Support**: Separate scaling controls with preview toggle
+- **Frame Preview**: Verify background frame selection visually
+- **Fullscreen Mode**: Maximized by default for comfortable use
+- **Batch Processing**: Process entire folders with progress feedback
+- **Executable Distribution**: Create standalone .exe for easy sharing
 
 ## Installation
 
@@ -19,11 +29,29 @@ This project is managed with `uv`.
     uv sync
     ```
 
+3.  **(Optional) Install dev tools for .exe building:**
+
+    ```bash
+    uv sync --dev
+    ```
+
 ## Usage
 
-Run the tool using `uv run`. The entry point is `main.py` (or the `photo-framer` script).
+### Desktop GUI (Default)
 
-### Basic Usage
+Launch the graphical interface with no arguments:
+
+```bash
+uv run photo-framer
+```
+
+The GUI provides:
+- Visual file selection for background frame and photos
+- Live preview with instant parameter updates
+- Separate controls for portrait and landscape scaling
+- Progress feedback during batch processing
+
+### Command Line Interface
 
 ```bash
 uv run photo-framer --frame ./frame.png --input ./input_images --output ./output_images
@@ -40,6 +68,19 @@ uv run photo-framer --frame ./frame.png --input ./input_images --output ./output
 | `--landscape-scale` | `0.8` | Scale factor for landscape images (0.0 to 1.0). |
 | `--quality` | `95` | JPEG quality for output images (1-100). |
 | `--format` | `png` | Output format (`png`, `jpg`, `jpeg`). |
+
+## Building Executable for Distribution
+
+Create a standalone .exe for distribution to non-technical users:
+
+```bash
+uv sync --dev
+uv run pyinstaller photo_framer.spec
+```
+
+The executable will be in `dist/PhotoFramer.exe` (~45 MB). It bundles Python and all dependencies, requiring no installation.
+
+See [BUILD_EXE.md](BUILD_EXE.md) for detailed instructions.
 
 ### Example
 
