@@ -10,3 +10,5 @@ wheels/
 .venv
 
 output_images/
+input_images/
+frame.png

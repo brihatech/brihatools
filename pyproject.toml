@@ -6,12 +6,16 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pillow>=11.0.0",
+    "customtkinter>=5.2.0",
 ]
 
 [dependency-groups]
 dev = [
     "ty>=0.0.14",
+    "pyinstaller>=6.0.0",
 ]
 
 [project.scripts]
-photo-framer = "photo_framer.cli:main"
+photo-framer = "main:main"
+photo-framer-cli = "photo_framer.cli:main"
+photo-framer-gui = "photo_framer.gui:main"

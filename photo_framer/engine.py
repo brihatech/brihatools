@@ -89,35 +89,15 @@ class PhotoFramerEngine:
                 x = (frame_w - img_w) // 2
                 y = (frame_h - img_h) // 2
                 
-                # Paste resized image onto frame
-                # specific logic: Frame is 'background' but usually frames are overlays? 
-                # Request says: "using the frame as a background". 
-                # If frame is background, we paste the image ON TOP.
-                # But wait, usually frames go AROUND. 
-                # Re-reading request: "using the frame as a background".
-                # "place the images uniformly in the frame using the frame as a background"
-                # This implies the provided 'frame.png' is the canvas, and we put the photo ON IT.
-                # If 'frame.png' has a transparent hole, we might want to put photo BEHIND.
-                # But request says "using the frame as a BACKGROUND".
-                # I will assume we paste Image ON TOP of Frame.
-                # However, if the user provided frame has a transparent center, maybe they want it behind?
-                # Let's stick to "Place image ON Frame" for now unless I see transparency analysis implying otherwise.
-                # Actually, standard "branding" often has a footer/header. So we paste image, then maybe frame on top? 
-                # "using the frame as a background" -> Frame is bottom layer. Image is top layer.
-                # But if the frame has text, the image might cover it?
-                # Usually: Background (Color/Texture) -> Image -> Overlay (Logos/Text).
-                # Provided input is just "frame".
-                # If I paste image on top of "frame", I might cover the branding.
-                # Let's fallback to: 
-                # 1. Create a canvas of Frame Size.
-                # 2. Draw Frame.
-                # 3. Draw Image centered (scaled).
-                # This matches "frame as background".
-                # BUT, if the frame image supplied has the logos, then pasting the photo on top might hide them.
-                # Let's inspect the frame.png later or assume the code logic:
-                # If I paste Image on Frame, I overwrite Frame content in that center rect.
+                # Apply vertical offset
+                if orientation == "portrait":
+                    offset_val = self.config.portrait_offset_y
+                else: 
+                    # Use landscape offset for square too
+                    offset_val = self.config.landscape_offset_y
                 
-                # Let's assume the user wants the image centered.
+                y += int(frame_h * offset_val)
+                
                 final_image.paste(resized_img, (x, y), resized_img)
                 
                 # Save result
@@ -163,22 +143,13 @@ class PhotoFramerEngine:
         # Determine scale factor specific to orientation
         if orientation == "portrait":
             scale_factor = self.config.portrait_scale
-            # Scale relative to frame height for portrait? 
-            # Usually we want to fit within a box.
-            # Let's define the bounding box for the image.
-            # If portrait_scale is 0.7, let's say we want the image to be 70% of frame area/height?
-            # Let's constrain both width and height to be within (scale * frame_dim).
-            
-            # Use separate logic? 
-            # If I use one scale factor for "portrait", does it mean max_height = 0.7 * frame_height?
-            
+           
             target_h = frame_h * scale_factor
             # Calculate width to preserve aspect ratio
             aspect_ratio = params_w / params_h
             target_w = target_h * aspect_ratio
             
-            # Check if this width exceeds frame width (unlikely for portrait but possible)
-            if target_w > frame_w * scale_factor: # logic: verify?
+            if target_w > frame_w * scale_factor:
                  # If width is too big, constrain by width
                  target_w = frame_w * scale_factor
                  target_h = target_w / aspect_ratio
@@ -196,9 +167,6 @@ class PhotoFramerEngine:
                 target_w = target_h * aspect_ratio
         
         else: # Square
-            # Use the smaller of the two scales or just average?
-            # Let's default to landscape scale (often safer) or portrait.
-            # Let's use landscape scale for square.
             scale_factor = self.config.landscape_scale
             target_h = frame_h * scale_factor
             target_w = target_h
