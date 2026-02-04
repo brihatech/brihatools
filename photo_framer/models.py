@@ -22,6 +22,7 @@ class FrameConfig:
     landscape_offset_y: float = 0.0  # Vertical offset (-0.5 to 0.5)
     quality: int = 95  # Output quality for JPEG (1-100)
     output_format: str = "png"  # Output format: png, jpg
+    remove_background: bool = True  # Option to remove background from images
     
     def __post_init__(self):
         """Convert string paths to Path objects if needed."""

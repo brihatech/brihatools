@@ -134,6 +134,16 @@ class PreviewGenerator:
                 # Paste resized image onto frame
                 final_image.paste(resized_img, (x, y), resized_img)
                 
+                # Remove background if enabled in config
+                if self.config.remove_background:
+                    from rembg import remove
+                    from io import BytesIO
+
+                    img_bytes = BytesIO()
+                    img.save(img_bytes, format="PNG")
+                    img_bytes.seek(0)
+                    img = Image.open(BytesIO(remove(img_bytes.read())))
+                
                 return final_image
                 
         except Exception as e:

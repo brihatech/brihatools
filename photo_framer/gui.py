@@ -50,6 +50,10 @@ class PhotoFramerGUI:
         self.landscape_offset = ctk.DoubleVar(value=0.0)
         self.output_format = ctk.StringVar(value="png")
         
+        # Bind remove background toggle to FrameConfig
+        self.remove_background = ctk.BooleanVar(value=False)  # Initialize remove_background
+        self.remove_background.trace_add("write", self._on_parameter_change)
+        
         # Build UI
         self._create_ui()
         
@@ -767,6 +771,21 @@ class PhotoFramerGUI:
             on_complete
         )
     
+    def _remove_background_preview(self):
+        """Update the preview to show the image with the background removed."""
+        if not self.scan_result or not self.scan_result.sample_portrait:
+            messagebox.showerror("Error", "No image available for preview.")
+            return
+
+        # Generate preview with background removed
+        self.preview_generator.config.remove_background = True
+        preview_image = self.preview_generator.generate_preview(self.scan_result.sample_portrait)
+
+        if preview_image:
+            self._update_preview(preview_image)
+        else:
+            messagebox.showerror("Error", "Failed to generate preview with background removed.")
+
     def run(self):
         """Start the GUI application."""
         self.window.mainloop()

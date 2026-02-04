@@ -5,6 +5,9 @@ from pathlib import Path
 from PIL import Image, ImageOps
 from .models import FrameConfig, ProcessingResult, ImageMetadata
 from typing import Tuple
+from concurrent.futures import ThreadPoolExecutor
+from rembg import remove
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -33,36 +36,43 @@ class PhotoFramerEngine:
         return self._frame_image
 
     def process_directory(self) -> list[ProcessingResult]:
-        """Process all images in the input directory."""
+        """Process all images in the input directory using multithreading."""
         results = []
-        
+
         # Create output directory if it doesn't exist
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # List common image extensions
         extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'}
-        
+
         files = [
             f for f in self.config.input_dir.iterdir() 
             if f.is_file() and f.suffix.lower() in extensions
         ]
-        
+
         logger.info(f"Found {len(files)} images in {self.config.input_dir}")
-        
-        for file_path in files:
-            result = self.process_image(file_path)
-            results.append(result)
-            
+
+        # Use ThreadPoolExecutor for multithreading
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            results = list(executor.map(self.process_image, files))
+
         return results
 
     def process_image(self, input_path: Path) -> ProcessingResult:
-        """Process a single image onto the frame."""
+        """Process a single image onto the frame, with optional background removal."""
         try:
             # Open and rotate image based on EXIF
             with Image.open(input_path) as img:
                 img = ImageOps.exif_transpose(img)
                 img = img.convert("RGBA")
-                
+
+                # Remove background if enabled in config
+                if self.config.remove_background:
+                    img_bytes = BytesIO()
+                    img.save(img_bytes, format="PNG")
+                    img_bytes.seek(0)
+                    img = Image.open(BytesIO(remove(img_bytes.read())))
+
                 original_size = img.size
                 orientation = self._detect_orientation(img)
                 
@@ -79,7 +89,6 @@ class PhotoFramerEngine:
                 resized_img = img.resize(target_size, Image.Resampling.LANCZOS)
                 
                 # Create composition
-                # Start with a copy of the frame
                 final_image = self.frame_image.copy()
                 
                 # Calculate centering position
