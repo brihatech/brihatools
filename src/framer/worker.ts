@@ -26,7 +26,10 @@ self.onmessage = async (e: MessageEvent<RenderJob>) => {
 
   // Start with a tiny canvas – we will resize per photo
   const canvas = new OffscreenCanvas(1, 1);
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Unable to acquire 2D context");
+  }
 
   const frameDims: Dimensions = {
     width: frame.width,

@@ -20,6 +20,8 @@ interface PhotoItem {
   name: string;
   url: string;
   bitmap?: ImageBitmap;
+  orientation?: PreviewOrientation;
+  bitmapPromise?: Promise<ImageBitmap>;
 }
 
 export interface CompositionSettings {
@@ -84,6 +86,7 @@ class PhotoFramer {
 
   private ui!: PhotoFramerUI;
   private renderDebounceTimer: number | null = null;
+  private currentPhotoLoadToken = 0;
 
   constructor() {
     this.initUI();
@@ -240,6 +243,7 @@ class PhotoFramer {
     this.state.photos.forEach((p) => {
       URL.revokeObjectURL(p.url);
       p.bitmap?.close();
+      p.bitmapPromise = undefined;
     });
 
     this.state.photos = files.map((file: File) => ({
@@ -250,16 +254,53 @@ class PhotoFramer {
 
     this.ui.photoStatus.textContent = `${this.state.photos.length} photos selected`;
     this.resetPreviewIndices();
-    this.setAllPreviewLoading(this.state.photos.length > 0);
-
     this.renderPreviews();
+
+    if (this.state.photos.length === 0) return;
+
+    const loadToken = ++this.currentPhotoLoadToken;
+    void this.loadPhotosInBackground(loadToken);
+  }
+
+  private async loadPhotosInBackground(loadToken: number) {
+    const BATCH_SIZE = 3;
+    const total = this.state.photos.length;
+    if (total === 0) return;
+
+    for (let i = 0; i < total; i += BATCH_SIZE) {
+      if (loadToken !== this.currentPhotoLoadToken) return;
+
+      const batch = this.state.photos.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map((photo) => this.ensurePhotoReady(photo)));
+
+      if (loadToken !== this.currentPhotoLoadToken) return;
+
+      const loaded = this.state.photos.filter((p) => p.bitmap).length;
+      this.ui.photoStatus.textContent =
+        loaded === total
+          ? `${total} photos ready`
+          : `Loading... ${loaded}/${total}`;
+      this.renderPreviews();
+    }
+
+    if (loadToken === this.currentPhotoLoadToken) {
+      this.ui.photoStatus.textContent = `${this.state.photos.length} photos ready`;
+      this.renderPreviews();
+    }
   }
 
   private async ensurePhotoReady(photo: PhotoItem) {
-    if (!photo.bitmap) {
-      photo.bitmap = await createImageBitmap(photo.file);
+    if (photo.bitmap) return photo.bitmap;
+    if (!photo.bitmapPromise) {
+      photo.bitmapPromise = createImageBitmap(photo.file).then((bitmap) => {
+        photo.bitmap = bitmap;
+        photo.orientation =
+          bitmap.height > bitmap.width ? "portrait" : "landscape";
+        photo.bitmapPromise = undefined;
+        return bitmap;
+      });
     }
-    return photo;
+    return photo.bitmapPromise;
   }
 
   private cyclePreview(type: PreviewOrientation, delta: number) {
@@ -302,36 +343,21 @@ class PhotoFramer {
     this.getLoadingElement(type).classList.toggle("active", isLoading);
   }
 
-  private setAllPreviewLoading(isLoading: boolean) {
-    PREVIEW_ORIENTATIONS.forEach((type) => {
-      this.setPreviewLoading(type, isLoading);
-    });
-  }
-
   private normalizePreviewIndex(index: number, total: number) {
     if (total <= 0) return 0;
     const normalized = ((index % total) + total) % total;
     return normalized;
   }
 
-  private async groupPhotosByOrientation() {
+  private groupPhotosByOrientationNonBlocking() {
     const grouped: Record<PreviewOrientation, PhotoItem[]> = {
       portrait: [],
       landscape: [],
     };
 
-    // Prepare all photos in parallel to avoid sequential latency.
-    await Promise.all(
-      this.state.photos.map((photo) => this.ensurePhotoReady(photo)),
-    );
-
-    // After all photos are ready, group them by orientation.
     for (const photo of this.state.photos) {
-      const bitmap = photo.bitmap;
-      if (!bitmap) continue;
-      const type: PreviewOrientation =
-        bitmap.height > bitmap.width ? "portrait" : "landscape";
-      grouped[type].push(photo);
+      if (!photo.orientation) continue;
+      grouped[photo.orientation].push(photo);
     }
 
     return grouped;
@@ -388,7 +414,7 @@ class PhotoFramer {
     return EXPORT_QUALITY_SCALE[this.state.exportQuality];
   }
 
-  private async renderPreviews() {
+  private renderPreviews() {
     if (!this.state.frame) {
       [this.ui.portraitCanvas, this.ui.landscapeCanvas].forEach((c) => {
         c.width = 1;
@@ -399,33 +425,28 @@ class PhotoFramer {
         "Upload a frame to begin";
       PREVIEW_ORIENTATIONS.forEach((type) => {
         this.setNavState(type, 0);
+        this.setPreviewLoading(type, false);
       });
-      this.setAllPreviewLoading(false);
       this.ui.downloadBtn.disabled = true;
       return;
     }
 
-    const needsPreparation = this.state.photos.some((p) => !p.bitmap);
-    if (needsPreparation) {
-      this.setAllPreviewLoading(true);
-    } else {
-      this.setAllPreviewLoading(false);
-    }
-
-    const grouped = await this.groupPhotosByOrientation();
-
-    if (needsPreparation) {
-      this.setAllPreviewLoading(false);
-    }
+    const grouped = this.groupPhotosByOrientationNonBlocking();
+    const pendingPhotos = this.state.photos.filter((p) => !p.bitmap).length;
 
     for (const type of PREVIEW_ORIENTATIONS) {
       const canvas =
         type === "portrait" ? this.ui.portraitCanvas : this.ui.landscapeCanvas;
       const meta =
         type === "portrait" ? this.ui.portraitMeta : this.ui.landscapeMeta;
-      const ctx = canvas.getContext("2d")!;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
       const matches = grouped[type];
       this.setNavState(type, matches.length);
+      const isTypeLoading =
+        matches.length === 0 &&
+        this.state.photos.length > 0 &&
+        pendingPhotos > 0;
 
       canvas.width = this.state.frame.naturalWidth;
       canvas.height = this.state.frame.naturalHeight;
@@ -438,7 +459,14 @@ class PhotoFramer {
         );
         this.state.previewIndex[type] = normalizedIndex;
         const matchedPhoto = matches[normalizedIndex];
-        const photoBitmap = matchedPhoto.bitmap!;
+        const photoBitmap = matchedPhoto.bitmap;
+        if (!photoBitmap) {
+          this.setPreviewLoading(type, true);
+          meta.textContent = `Loading ${matchedPhoto.name}...`;
+          ctx.drawImage(this.state.frame, 0, 0);
+          continue;
+        }
+        this.setPreviewLoading(type, false);
         this.compose(ctx, {
           frame: this.state.frame,
           photo: photoBitmap,
@@ -447,15 +475,21 @@ class PhotoFramer {
         meta.textContent = `${matchedPhoto.name} • ${type} (${normalizedIndex + 1}/${matches.length})`;
       } else {
         ctx.drawImage(this.state.frame, 0, 0);
-        meta.textContent =
-          this.state.photos.length === 0
-            ? "Upload photos to preview"
-            : `No ${type} photos selected`;
+        if (isTypeLoading) {
+          this.setPreviewLoading(type, true);
+          meta.textContent = `Loading ${type} photos...`;
+        } else {
+          this.setPreviewLoading(type, false);
+          meta.textContent =
+            this.state.photos.length === 0
+              ? "Upload photos to preview"
+              : `No ${type} photos selected`;
+        }
       }
     }
 
-    this.ui.downloadBtn.disabled =
-      this.state.photos.length === 0 || this.state.isProcessing;
+    const anyReady = this.state.photos.some((p) => p.bitmap);
+    this.ui.downloadBtn.disabled = !anyReady || this.state.isProcessing;
   }
 
   private async handleDownload() {
@@ -478,9 +512,9 @@ class PhotoFramer {
     // Prepare data for worker
     const photosData: Array<{ name: string; bitmap: ImageBitmap }> = [];
     for (const photo of this.state.photos) {
-      await this.ensurePhotoReady(photo);
+      const readyBitmap = await this.ensurePhotoReady(photo);
       // We need to create NEW bitmaps to transfer them to the worker
-      const bitmap = await createImageBitmap(photo.bitmap!);
+      const bitmap = await createImageBitmap(readyBitmap);
       photosData.push({
         name: photo.name,
         bitmap,
