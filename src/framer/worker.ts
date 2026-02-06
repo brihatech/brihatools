@@ -1,12 +1,12 @@
 import JSZip from "jszip";
 
-import { drawOrientedImage } from "./lib/canvas";
+import { drawOrientedImage } from "../lib/canvas";
 import {
   calculateTargetSize,
   type Dimensions,
   getOrientedDimensions,
   type OrientationType,
-} from "./lib/image";
+} from "../lib/image";
 
 interface RenderJob {
   frame: ImageBitmap;

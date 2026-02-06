@@ -5,7 +5,7 @@ import {
   type OrientationType,
 } from "@/lib/image";
 
-import { createOrientedBitmap } from "./lib/canvas";
+import { createOrientedBitmap } from "../lib/canvas";
 
 // --- Types ---
 interface PhotoItem {
@@ -29,6 +29,32 @@ export interface RenderContext {
   settings: CompositionSettings;
 }
 
+interface PhotoFramerUI {
+  frameInput: HTMLInputElement;
+  photoInput: HTMLInputElement;
+  photoList: HTMLDivElement;
+  portraitCanvas: HTMLCanvasElement;
+  landscapeCanvas: HTMLCanvasElement;
+  portraitMeta: HTMLElement;
+  landscapeMeta: HTMLElement;
+  downloadBtn: HTMLButtonElement;
+  status: HTMLDivElement;
+  frameStatus: HTMLElement;
+  photoStatus: HTMLElement;
+  sliders: {
+    portraitScale: HTMLInputElement;
+    portraitOffset: HTMLInputElement;
+    landscapeScale: HTMLInputElement;
+    landscapeOffset: HTMLInputElement;
+  };
+  labels: {
+    portraitScale: HTMLSpanElement;
+    portraitOffset: HTMLSpanElement;
+    landscapeScale: HTMLSpanElement;
+    landscapeOffset: HTMLSpanElement;
+  };
+}
+
 class PhotoFramer {
   private state = {
     frame: null as HTMLImageElement | null,
@@ -41,7 +67,7 @@ class PhotoFramer {
     isProcessing: false,
   };
 
-  private ui: any = {};
+  private ui!: PhotoFramerUI;
   private renderDebounceTimer: number | null = null;
 
   constructor() {
@@ -122,7 +148,7 @@ class PhotoFramer {
       landscapeOffset: { type: "landscape", field: "offset" },
     };
 
-    Object.entries(this.ui.sliders).forEach(([key, input]: [string, any]) => {
+    Object.entries(this.ui.sliders).forEach(([key, input]) => {
       input.addEventListener("input", (e: Event) => {
         const config = sliderMap[key];
         if (config) {
@@ -163,7 +189,7 @@ class PhotoFramer {
       p.bitmap?.close();
     });
 
-    this.state.photos = files.map((file) => ({
+    this.state.photos = files.map((file: File) => ({
       file,
       name: file.name,
       url: URL.createObjectURL(file),
@@ -199,9 +225,10 @@ class PhotoFramer {
       height: data.frame.naturalHeight,
     };
 
+    const bitmap = data.photo as ImageBitmap;
     const orientedDims = {
-      width: (data.photo as ImageBitmap).width,
-      height: (data.photo as ImageBitmap).height,
+      width: bitmap.width,
+      height: bitmap.height,
     };
     const orientationType: OrientationType =
       orientedDims.height > orientedDims.width ? "portrait" : "landscape";
@@ -220,7 +247,7 @@ class PhotoFramer {
     ctx.drawImage(data.frame, 0, 0, frameDims.width, frameDims.height);
     // Use the pre-oriented bitmap directly
     ctx.drawImage(
-      data.photo,
+      bitmap,
       centerX,
       centerY + offsetValue,
       targetWidth,
@@ -262,11 +289,13 @@ class PhotoFramer {
       let matchedPhoto: PhotoItem | undefined;
       for (const p of this.state.photos) {
         await this.ensurePhotoReady(p);
-        const pType =
-          p.bitmap?.height > p.bitmap?.width ? "portrait" : "landscape";
-        if (pType === type) {
-          matchedPhoto = p;
-          break;
+        const bitmap = p.bitmap;
+        if (bitmap) {
+          const pType = bitmap.height > bitmap.width ? "portrait" : "landscape";
+          if (pType === type) {
+            matchedPhoto = p;
+            break;
+          }
         }
       }
 
@@ -305,7 +334,7 @@ class PhotoFramer {
     this.ui.status.textContent = "Preparing photos...";
 
     // Create a worker
-    const worker = new Worker(new URL("./framer.worker.ts", import.meta.url), {
+    const worker = new Worker(new URL("./worker.ts", import.meta.url), {
       type: "module",
     });
 
