@@ -1,16 +1,19 @@
 export type OrientationType = "portrait" | "landscape" | "square";
 
-export type Dimensions = {
+export interface Dimensions {
   width: number;
   height: number;
-};
+}
 
+/**
+ * Determines the orientation type of a set of dimensions.
+ */
 export function getOrientationType(
   width: number,
   height: number,
 ): OrientationType {
-  const diff = Math.abs(width - height) / Math.max(width, height);
-  if (diff < 0.01) return "square";
+  const ratio = width / height;
+  if (Math.abs(1 - ratio) < 0.05) return "square";
   return height > width ? "portrait" : "landscape";
 }
 
@@ -24,43 +27,46 @@ export function calculateTargetSize(
   scale: number,
   orientation: OrientationType,
 ): Dimensions {
-  if (orientation === "portrait") {
-    // Logic for portrait fitting
-    let targetHeight = frame.height * scale;
-    let targetWidth = targetHeight * (photo.width / photo.height);
-    const maxWidth = frame.width * scale;
+  const isPortrait = orientation === "portrait";
 
-    // Constrain if it gets too wide
+  // Base target size on the dominant dimension for the orientation
+  let targetWidth: number;
+  let targetHeight: number;
+
+  if (isPortrait) {
+    targetHeight = frame.height * scale;
+    targetWidth = targetHeight * (photo.width / photo.height);
+    const maxWidth = frame.width * scale;
     if (targetWidth > maxWidth) {
       targetWidth = maxWidth;
       targetHeight = targetWidth * (photo.height / photo.width);
     }
-    return { width: targetWidth, height: targetHeight };
+  } else {
+    targetWidth = frame.width * scale;
+    targetHeight = targetWidth * (photo.height / photo.width);
+    const maxHeight = frame.height * scale;
+    if (targetHeight > maxHeight) {
+      targetHeight = maxHeight;
+      targetWidth = targetHeight * (photo.width / photo.height);
+    }
   }
 
-  // Logic for landscape fitting
-  let targetWidth = frame.width * scale;
-  let targetHeight = targetWidth * (photo.height / photo.width);
-  const maxHeight = frame.height * scale;
-
-  if (targetHeight > maxHeight) {
-    targetHeight = maxHeight;
-    targetWidth = targetHeight * (photo.width / photo.height);
-  }
   return { width: targetWidth, height: targetHeight };
 }
 
 /**
- * Swaps dimensions if the EXIF orientation indicates 90-degree rotation.
+ * Returns dimensions considering EXIF rotation.
  */
 export function getOrientedDimensions(
-  image: HTMLImageElement,
+  source: { width: number; height: number } | HTMLImageElement,
   orientation: number,
 ): Dimensions {
-  const width = image.naturalWidth;
-  const height = image.naturalHeight;
+  const width = "naturalWidth" in source ? source.naturalWidth : source.width;
+  const height =
+    "naturalHeight" in source ? source.naturalHeight : source.height;
+
   // EXIF 5-8 indicate 90 or 270 degree rotation
-  if ([5, 6, 7, 8].includes(orientation)) {
+  if (orientation >= 5 && orientation <= 8) {
     return { width: height, height: width };
   }
   return { width, height };

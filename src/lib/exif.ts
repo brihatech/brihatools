@@ -1,10 +1,15 @@
-import EXIF from "exif-js";
+import exifr from "exifr";
 
+/**
+ * Extracts EXIF orientation from a file.
+ * Returns 1 (normal) if orientation is missing or invalid.
+ */
 export async function getExifOrientation(file: File): Promise<number> {
-  return new Promise((resolve) => {
-    EXIF.getData(file as any, function (this: any) {
-      const orientation = EXIF.getTag(this, "Orientation");
-      resolve(typeof orientation === "number" ? orientation : 1);
-    });
-  });
+  try {
+    const orientation = await exifr.orientation(file);
+    return typeof orientation === "number" ? orientation : 1;
+  } catch (err) {
+    console.warn("Failed to extract EXIF orientation:", err);
+    return 1;
+  }
 }

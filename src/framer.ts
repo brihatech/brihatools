@@ -1,418 +1,357 @@
-import JSZip from "jszip";
-
-import { drawOrientedImage } from "@/lib/canvas";
 import { getExifOrientation } from "@/lib/exif";
 import {
   calculateTargetSize,
-  getOrientationType,
-  getOrientedDimensions,
+  type Dimensions,
   type OrientationType,
 } from "@/lib/image";
 
-type PhotoItem = {
+import { createOrientedBitmap } from "./lib/canvas";
+
+// --- Types ---
+interface PhotoItem {
   file: File;
   name: string;
   url: string;
-  image: HTMLImageElement | null;
-  orientation: number | null;
-};
+  image?: HTMLImageElement;
+  bitmap?: ImageBitmap; // Pre-oriented cache
+  orientation?: number;
+}
 
-type AppState = {
-  frameFile: File | null;
-  frameImage: HTMLImageElement | null;
-  frameUrl: string | null;
-  photos: PhotoItem[];
-  settings: {
-    portraitScale: number;
-    portraitOffset: number;
-    landscapeScale: number;
-    landscapeOffset: number;
+export interface CompositionSettings {
+  scale: number;
+  offset: number;
+}
+
+export interface RenderContext {
+  frame: HTMLImageElement;
+  photo: CanvasImageSource;
+  orientation: number;
+  settings: CompositionSettings;
+}
+
+class PhotoFramer {
+  private state = {
+    frame: null as HTMLImageElement | null,
+    frameBitmap: null as ImageBitmap | null,
+    photos: [] as PhotoItem[],
+    settings: {
+      portrait: { scale: 0.7, offset: 0 },
+      landscape: { scale: 0.9, offset: 0 },
+    },
+    isProcessing: false,
   };
-};
 
-const state: AppState = {
-  frameFile: null,
-  frameImage: null,
-  frameUrl: null,
-  photos: [],
-  settings: {
-    portraitScale: 0.7,
-    portraitOffset: 0,
-    landscapeScale: 0.9,
-    landscapeOffset: 0,
-  },
-};
+  private ui: any = {};
+  private renderDebounceTimer: number | null = null;
 
-const elements = {
-  frameInput: document.getElementById("frameInput") as HTMLInputElement,
-  photoInput: document.getElementById("photoInput") as HTMLInputElement,
-  frameStatus: document.getElementById("frameStatus") as HTMLDivElement,
-  photoStatus: document.getElementById("photoStatus") as HTMLDivElement,
-  photoList: document.getElementById("photoList") as HTMLDivElement,
-  portraitPreviewCanvas: document.getElementById(
-    "portraitPreviewCanvas",
-  ) as HTMLCanvasElement,
-  landscapePreviewCanvas: document.getElementById(
-    "landscapePreviewCanvas",
-  ) as HTMLCanvasElement,
-  portraitPreviewMeta: document.getElementById(
-    "portraitPreviewMeta",
-  ) as HTMLParagraphElement,
-  landscapePreviewMeta: document.getElementById(
-    "landscapePreviewMeta",
-  ) as HTMLParagraphElement,
-  downloadZip: document.getElementById("downloadZip") as HTMLButtonElement,
-  downloadStatus: document.getElementById("downloadStatus") as HTMLDivElement,
-  portraitScale: document.getElementById("portraitScale") as HTMLInputElement,
-  portraitOffset: document.getElementById("portraitOffset") as HTMLInputElement,
-  landscapeScale: document.getElementById("landscapeScale") as HTMLInputElement,
-  landscapeOffset: document.getElementById(
-    "landscapeOffset",
-  ) as HTMLInputElement,
-  portraitScaleValue: document.getElementById(
-    "portraitScaleValue",
-  ) as HTMLSpanElement,
-  portraitOffsetValue: document.getElementById(
-    "portraitOffsetValue",
-  ) as HTMLSpanElement,
-  landscapeScaleValue: document.getElementById(
-    "landscapeScaleValue",
-  ) as HTMLSpanElement,
-  landscapeOffsetValue: document.getElementById(
-    "landscapeOffsetValue",
-  ) as HTMLSpanElement,
-};
+  constructor() {
+    this.initUI();
+    this.bindEvents();
+    this.updateLabels();
+    this.renderPreviews();
+  }
 
-const portraitContext = elements.portraitPreviewCanvas.getContext(
-  "2d",
-) as CanvasRenderingContext2D;
-const landscapeContext = elements.landscapePreviewCanvas.getContext(
-  "2d",
-) as CanvasRenderingContext2D;
+  private initUI() {
+    this.ui = {
+      frameInput: document.getElementById("frameInput") as HTMLInputElement,
+      photoInput: document.getElementById("photoInput") as HTMLInputElement,
+      photoList: document.getElementById("photoList") as HTMLDivElement,
+      portraitCanvas: document.getElementById(
+        "portraitPreviewCanvas",
+      ) as HTMLCanvasElement,
+      landscapeCanvas: document.getElementById(
+        "landscapePreviewCanvas",
+      ) as HTMLCanvasElement,
+      portraitMeta: document.getElementById(
+        "portraitPreviewMeta",
+      ) as HTMLElement,
+      landscapeMeta: document.getElementById(
+        "landscapePreviewMeta",
+      ) as HTMLElement,
+      downloadBtn: document.getElementById("downloadZip") as HTMLButtonElement,
+      status: document.getElementById("downloadStatus") as HTMLDivElement,
+      frameStatus: document.getElementById("frameStatus") as HTMLElement,
+      photoStatus: document.getElementById("photoStatus") as HTMLElement,
+      sliders: {
+        portraitScale: document.getElementById(
+          "portraitScale",
+        ) as HTMLInputElement,
+        portraitOffset: document.getElementById(
+          "portraitOffset",
+        ) as HTMLInputElement,
+        landscapeScale: document.getElementById(
+          "landscapeScale",
+        ) as HTMLInputElement,
+        landscapeOffset: document.getElementById(
+          "landscapeOffset",
+        ) as HTMLInputElement,
+      },
+      labels: {
+        portraitScale: document.getElementById(
+          "portraitScaleValue",
+        ) as HTMLSpanElement,
+        portraitOffset: document.getElementById(
+          "portraitOffsetValue",
+        ) as HTMLSpanElement,
+        landscapeScale: document.getElementById(
+          "landscapeScaleValue",
+        ) as HTMLSpanElement,
+        landscapeOffset: document.getElementById(
+          "landscapeOffsetValue",
+        ) as HTMLSpanElement,
+      },
+    };
+  }
 
-function debounce<T extends (...args: never[]) => void>(
-  callback: T,
-  wait = 150,
-) {
-  let timeout: number | undefined;
-  return (...args: Parameters<T>) => {
-    window.clearTimeout(timeout);
-    timeout = window.setTimeout(() => callback(...args), wait);
-  };
-}
+  private bindEvents() {
+    this.ui.frameInput.addEventListener("change", () =>
+      this.handleFrameUpload(),
+    );
+    this.ui.photoInput.addEventListener("change", () =>
+      this.handlePhotosUpload(),
+    );
+    this.ui.downloadBtn.addEventListener("click", () => this.handleDownload());
 
-function updateSliderLabels() {
-  elements.portraitScaleValue.textContent =
-    state.settings.portraitScale.toFixed(2);
-  elements.portraitOffsetValue.textContent =
-    state.settings.portraitOffset.toFixed(2);
-  elements.landscapeScaleValue.textContent =
-    state.settings.landscapeScale.toFixed(2);
-  elements.landscapeOffsetValue.textContent =
-    state.settings.landscapeOffset.toFixed(2);
-}
+    const sliderMap: Record<
+      string,
+      { type: "portrait" | "landscape"; field: "scale" | "offset" }
+    > = {
+      portraitScale: { type: "portrait", field: "scale" },
+      portraitOffset: { type: "portrait", field: "offset" },
+      landscapeScale: { type: "landscape", field: "scale" },
+      landscapeOffset: { type: "landscape", field: "offset" },
+    };
 
-function setDownloadEnabled(enabled: boolean) {
-  elements.downloadZip.disabled = !enabled;
-}
+    Object.entries(this.ui.sliders).forEach(([key, input]: [string, any]) => {
+      input.addEventListener("input", (e: Event) => {
+        const config = sliderMap[key];
+        if (config) {
+          const val = Number((e.target as HTMLInputElement).value);
+          this.state.settings[config.type][config.field] = val;
+          this.updateLabels();
+          this.requestPreview();
+        }
+      });
+    });
+  }
 
-function updatePhotoList() {
-  elements.photoList.innerHTML = "";
-  state.photos.forEach((photo) => {
-    const wrapper = document.createElement("div");
-    wrapper.className =
-      "group relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-100";
+  private requestPreview() {
+    if (this.renderDebounceTimer)
+      cancelAnimationFrame(this.renderDebounceTimer);
+    this.renderDebounceTimer = requestAnimationFrame(() =>
+      this.renderPreviews(),
+    );
+  }
 
-    const img = document.createElement("img");
-    img.src = photo.url;
-    img.alt = photo.name;
-    img.className = "h-full w-full object-cover";
+  private async handleFrameUpload() {
+    const file = this.ui.frameInput.files?.[0];
+    if (!file) return;
 
-    wrapper.appendChild(img);
-    elements.photoList.appendChild(wrapper);
-  });
-}
-
-function loadImageFromUrl(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-async function preparePhoto(photo: PhotoItem) {
-  if (!photo.image) {
-    photo.image = await loadImageFromUrl(photo.url);
+    img.src = URL.createObjectURL(file);
+    await img.decode();
+    this.state.frame = img;
+    this.state.frameBitmap = await createImageBitmap(img);
+    this.ui.frameStatus.textContent = file.name;
+    this.renderPreviews();
   }
-  if (!photo.orientation) {
-    photo.orientation = await getExifOrientation(photo.file);
-  }
-  return photo;
-}
 
-async function findPhotoForOrientation(targetOrientation: OrientationType) {
-  for (const photo of state.photos) {
-    const prepared = await preparePhoto(photo);
-    const orientedDims = getOrientedDimensions(
-      prepared.image!,
-      prepared.orientation ?? 1,
-    );
-    const orientationType = getOrientationType(
-      orientedDims.width,
-      orientedDims.height,
-    );
-    if (orientationType === targetOrientation) {
-      return { photo: prepared, orientationType, orientedDims };
+  private async handlePhotosUpload() {
+    const files = Array.from(this.ui.photoInput.files ?? []);
+    this.state.photos.forEach((p) => {
+      URL.revokeObjectURL(p.url);
+      p.bitmap?.close();
+    });
+
+    this.state.photos = files.map((file) => ({
+      file,
+      name: file.name,
+      url: URL.createObjectURL(file),
+    }));
+
+    this.ui.photoStatus.textContent = `${this.state.photos.length} photos selected`;
+    this.ui.photoList.innerHTML = this.state.photos
+      .map(
+        (p) => `
+        <div class="group relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-100 photo-thumb">
+          <img src="${p.url}" class="h-full w-full object-cover" loading="lazy" />
+        </div>
+      `,
+      )
+      .join("");
+
+    this.renderPreviews();
+  }
+
+  private async ensurePhotoReady(photo: PhotoItem) {
+    if (!photo.orientation) {
+      photo.orientation = await getExifOrientation(photo.file);
     }
-  }
-  return null;
-}
-
-function drawFrameOnly(
-  ctx: CanvasRenderingContext2D,
-  canvas: HTMLCanvasElement,
-) {
-  if (!state.frameImage) return;
-  const frameWidth = state.frameImage.naturalWidth;
-  const frameHeight = state.frameImage.naturalHeight;
-  canvas.width = frameWidth;
-  canvas.height = frameHeight;
-  ctx.clearRect(0, 0, frameWidth, frameHeight);
-  ctx.drawImage(state.frameImage, 0, 0, frameWidth, frameHeight);
-}
-
-async function renderPreview(
-  targetOrientation: OrientationType,
-  ctx: CanvasRenderingContext2D,
-  canvas: HTMLCanvasElement,
-  metaElement: HTMLElement,
-) {
-  if (!state.frameImage) {
-    canvas.width = 1;
-    canvas.height = 1;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    metaElement.textContent = "Upload a frame to begin";
-    return;
-  }
-
-  if (state.photos.length === 0) {
-    drawFrameOnly(ctx, canvas);
-    metaElement.textContent = "No photos selected";
-    return;
-  }
-
-  const match = await findPhotoForOrientation(targetOrientation);
-  if (!match) {
-    drawFrameOnly(ctx, canvas);
-    metaElement.textContent = `No ${targetOrientation} photos found`;
-    return;
-  }
-
-  const { photo, orientedDims, orientationType } = match;
-  const frameDims = {
-    width: state.frameImage.naturalWidth,
-    height: state.frameImage.naturalHeight,
-  };
-  const scale =
-    orientationType === "portrait"
-      ? state.settings.portraitScale
-      : state.settings.landscapeScale;
-
-  const { width: targetWidth, height: targetHeight } = calculateTargetSize(
-    frameDims,
-    orientedDims,
-    scale,
-    orientationType,
-  );
-
-  const centerX = (frameDims.width - targetWidth) / 2;
-  const centerY = (frameDims.height - targetHeight) / 2;
-  const offset =
-    orientationType === "portrait"
-      ? state.settings.portraitOffset * frameDims.height
-      : state.settings.landscapeOffset * frameDims.height;
-
-  canvas.width = frameDims.width;
-  canvas.height = frameDims.height;
-  ctx.clearRect(0, 0, frameDims.width, frameDims.height);
-  ctx.drawImage(state.frameImage, 0, 0, frameDims.width, frameDims.height);
-  drawOrientedImage(
-    ctx,
-    photo.image!,
-    photo.orientation ?? 1,
-    centerX,
-    centerY + offset,
-    targetWidth,
-    targetHeight,
-  );
-
-  metaElement.textContent = `${photo.name} • ${orientationType}`;
-}
-
-async function renderPreviews() {
-  await renderPreview(
-    "portrait",
-    portraitContext,
-    elements.portraitPreviewCanvas,
-    elements.portraitPreviewMeta,
-  );
-  await renderPreview(
-    "landscape",
-    landscapeContext,
-    elements.landscapePreviewCanvas,
-    elements.landscapePreviewMeta,
-  );
-  setDownloadEnabled(Boolean(state.frameImage && state.photos.length));
-}
-
-async function renderPhotoToBlob(photo: PhotoItem) {
-  if (!state.frameImage) return null;
-
-  const frameDims = {
-    width: state.frameImage.naturalWidth,
-    height: state.frameImage.naturalHeight,
-  };
-  const prepared = await preparePhoto(photo);
-  const orientedDims = getOrientedDimensions(
-    prepared.image!,
-    prepared.orientation ?? 1,
-  );
-  const orientationType = getOrientationType(
-    orientedDims.width,
-    orientedDims.height,
-  );
-  const scale =
-    orientationType === "portrait"
-      ? state.settings.portraitScale
-      : state.settings.landscapeScale;
-
-  const { width: targetWidth, height: targetHeight } = calculateTargetSize(
-    frameDims,
-    orientedDims,
-    scale,
-    orientationType,
-  );
-
-  const centerX = (frameDims.width - targetWidth) / 2;
-  const centerY = (frameDims.height - targetHeight) / 2;
-  const offset =
-    orientationType === "portrait"
-      ? state.settings.portraitOffset * frameDims.height
-      : state.settings.landscapeOffset * frameDims.height;
-
-  const outputCanvas = document.createElement("canvas");
-  outputCanvas.width = frameDims.width;
-  outputCanvas.height = frameDims.height;
-  const ctx = outputCanvas.getContext("2d") as CanvasRenderingContext2D;
-  ctx.drawImage(state.frameImage, 0, 0, frameDims.width, frameDims.height);
-  drawOrientedImage(
-    ctx,
-    prepared.image!,
-    prepared.orientation ?? 1,
-    centerX,
-    centerY + offset,
-    targetWidth,
-    targetHeight,
-  );
-
-  return new Promise<Blob | null>((resolve) => {
-    outputCanvas.toBlob((blob) => resolve(blob), "image/png");
-  });
-}
-
-function resetPhotos() {
-  state.photos.forEach((photo) => {
-    URL.revokeObjectURL(photo.url);
-  });
-  state.photos = [];
-  updatePhotoList();
-  renderPreviews();
-}
-
-elements.frameInput.addEventListener("change", async (event) => {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (!file) return;
-
-  if (state.frameUrl) {
-    URL.revokeObjectURL(state.frameUrl);
-  }
-
-  state.frameFile = file;
-  state.frameUrl = URL.createObjectURL(file);
-  state.frameImage = await loadImageFromUrl(state.frameUrl);
-  elements.frameStatus.textContent = file.name;
-  renderPreviews();
-});
-
-elements.photoInput.addEventListener("change", (event) => {
-  const target = event.target as HTMLInputElement;
-  const files = Array.from(target.files ?? []);
-  resetPhotos();
-
-  state.photos = files.map((file) => ({
-    file,
-    name: file.name,
-    url: URL.createObjectURL(file),
-    image: null,
-    orientation: null,
-  }));
-
-  elements.photoStatus.textContent = `${state.photos.length} photo${state.photos.length !== 1 ? "s" : ""} selected`;
-  updatePhotoList();
-  renderPreviews();
-});
-
-const debouncedRender = debounce(renderPreviews, 200);
-
-[
-  elements.portraitScale,
-  elements.portraitOffset,
-  elements.landscapeScale,
-  elements.landscapeOffset,
-].forEach((slider) => {
-  slider.addEventListener("input", () => {
-    state.settings.portraitScale = Number(elements.portraitScale.value);
-    state.settings.portraitOffset = Number(elements.portraitOffset.value);
-    state.settings.landscapeScale = Number(elements.landscapeScale.value);
-    state.settings.landscapeOffset = Number(elements.landscapeOffset.value);
-    updateSliderLabels();
-    debouncedRender();
-  });
-});
-
-elements.downloadZip.addEventListener("click", async () => {
-  if (!state.frameImage || state.photos.length === 0) return;
-
-  elements.downloadZip.disabled = true;
-  elements.downloadStatus.textContent = "Preparing ZIP...";
-
-  const zip = new JSZip();
-  for (let i = 0; i < state.photos.length; i += 1) {
-    const photo = state.photos[i];
-    elements.downloadStatus.textContent = `Processing ${i + 1} of ${state.photos.length}`;
-    const blob = await renderPhotoToBlob(photo);
-    if (blob) {
-      const baseName = photo.name.replace(/\.[^/.]+$/, "");
-      zip.file(`${baseName}-framed.png`, blob);
+    if (!photo.bitmap) {
+      photo.bitmap = await createOrientedBitmap(photo.file, photo.orientation);
     }
+    return photo;
   }
 
-  const zipBlob = await zip.generateAsync({ type: "blob" });
-  const downloadUrl = URL.createObjectURL(zipBlob);
-  const link = document.createElement("a");
-  link.href = downloadUrl;
-  link.download = "framed-photos.zip";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(downloadUrl);
+  private compose(ctx: CanvasRenderingContext2D, data: RenderContext) {
+    const frameDims: Dimensions = {
+      width: data.frame.naturalWidth,
+      height: data.frame.naturalHeight,
+    };
 
-  elements.downloadStatus.textContent = "ZIP download ready";
-  elements.downloadZip.disabled = false;
-});
+    const orientedDims = {
+      width: (data.photo as ImageBitmap).width,
+      height: (data.photo as ImageBitmap).height,
+    };
+    const orientationType: OrientationType =
+      orientedDims.height > orientedDims.width ? "portrait" : "landscape";
 
-updateSliderLabels();
-renderPreviews();
+    const { width: targetWidth, height: targetHeight } = calculateTargetSize(
+      frameDims,
+      orientedDims,
+      data.settings.scale,
+      orientationType,
+    );
+
+    const centerX = (frameDims.width - targetWidth) / 2;
+    const centerY = (frameDims.height - targetHeight) / 2;
+    const offsetValue = data.settings.offset * frameDims.height;
+
+    ctx.drawImage(data.frame, 0, 0, frameDims.width, frameDims.height);
+    // Use the pre-oriented bitmap directly
+    ctx.drawImage(
+      data.photo,
+      centerX,
+      centerY + offsetValue,
+      targetWidth,
+      targetHeight,
+    );
+  }
+
+  private updateLabels() {
+    this.ui.labels.portraitScale.textContent =
+      this.state.settings.portrait.scale.toFixed(2);
+    this.ui.labels.portraitOffset.textContent =
+      this.state.settings.portrait.offset.toFixed(2);
+    this.ui.labels.landscapeScale.textContent =
+      this.state.settings.landscape.scale.toFixed(2);
+    this.ui.labels.landscapeOffset.textContent =
+      this.state.settings.landscape.offset.toFixed(2);
+  }
+
+  private async renderPreviews() {
+    if (!this.state.frame) {
+      [this.ui.portraitCanvas, this.ui.landscapeCanvas].forEach((c) => {
+        c.width = 1;
+        c.height = 1;
+        c.getContext("2d")?.clearRect(0, 0, 1, 1);
+      });
+      this.ui.portraitMeta.textContent = this.ui.landscapeMeta.textContent =
+        "Upload a frame to begin";
+      this.ui.downloadBtn.disabled = true;
+      return;
+    }
+
+    for (const type of ["portrait", "landscape"] as const) {
+      const canvas =
+        type === "portrait" ? this.ui.portraitCanvas : this.ui.landscapeCanvas;
+      const meta =
+        type === "portrait" ? this.ui.portraitMeta : this.ui.landscapeMeta;
+      const ctx = canvas.getContext("2d")!;
+
+      let matchedPhoto: PhotoItem | undefined;
+      for (const p of this.state.photos) {
+        await this.ensurePhotoReady(p);
+        const pType =
+          p.bitmap?.height > p.bitmap?.width ? "portrait" : "landscape";
+        if (pType === type) {
+          matchedPhoto = p;
+          break;
+        }
+      }
+
+      canvas.width = this.state.frame.naturalWidth;
+      canvas.height = this.state.frame.naturalHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (matchedPhoto?.bitmap) {
+        this.compose(ctx, {
+          frame: this.state.frame,
+          photo: matchedPhoto.bitmap,
+          orientation: matchedPhoto.orientation!,
+          settings: this.state.settings[type],
+        });
+        meta.textContent = `${matchedPhoto.name} • ${type}`;
+      } else {
+        ctx.drawImage(this.state.frame, 0, 0);
+        meta.textContent = `No ${type} photos selected`;
+      }
+    }
+
+    this.ui.downloadBtn.disabled =
+      this.state.photos.length === 0 || this.state.isProcessing;
+  }
+
+  private async handleDownload() {
+    if (
+      !this.state.frameBitmap ||
+      this.state.photos.length === 0 ||
+      this.state.isProcessing
+    )
+      return;
+
+    this.state.isProcessing = true;
+    this.ui.downloadBtn.disabled = true;
+    this.ui.status.textContent = "Preparing photos...";
+
+    // Create a worker
+    const worker = new Worker(new URL("./framer.worker.ts", import.meta.url), {
+      type: "module",
+    });
+
+    // Prepare data for worker
+    const photosData = [];
+    for (const photo of this.state.photos) {
+      await this.ensurePhotoReady(photo);
+      // We need to create NEW bitmaps to transfer them to the worker
+      const bitmap = await createImageBitmap(photo.bitmap!);
+      photosData.push({
+        name: photo.name,
+        bitmap,
+        orientation: photo.orientation!,
+      });
+    }
+
+    const frameBitmap = await createImageBitmap(this.state.frameBitmap);
+
+    worker.onmessage = (e) => {
+      const { type, current, total, blob } = e.data;
+      if (type === "progress") {
+        this.ui.status.textContent = `Processing ${current}/${total}...`;
+      } else if (type === "complete") {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "framed-photos.zip";
+        link.click();
+
+        this.ui.status.textContent = "Done!";
+        this.state.isProcessing = false;
+        this.ui.downloadBtn.disabled = false;
+        worker.terminate();
+      }
+    };
+
+    // Transfer bitmaps to worker
+    const transferables = [frameBitmap, ...photosData.map((p) => p.bitmap)];
+    worker.postMessage(
+      {
+        frame: frameBitmap,
+        photos: photosData,
+        settings: this.state.settings,
+      },
+      transferables,
+    );
+  }
+}
+
+new PhotoFramer();
