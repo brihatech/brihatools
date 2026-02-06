@@ -1,13 +1,12 @@
-import { getExifOrientation } from "@/lib/exif";
 import {
   calculateTargetSize,
   type Dimensions,
   type OrientationType,
 } from "@/lib/image";
 
-import { createOrientedBitmap } from "../lib/canvas";
-
 type ExportQuality = "low" | "medium" | "high";
+const PREVIEW_ORIENTATIONS = ["portrait", "landscape"] as const;
+type PreviewOrientation = (typeof PREVIEW_ORIENTATIONS)[number];
 
 const EXPORT_QUALITY_SCALE: Record<ExportQuality, number> = {
   low: 1.2,
@@ -20,9 +19,7 @@ interface PhotoItem {
   file: File;
   name: string;
   url: string;
-  image?: HTMLImageElement;
-  bitmap?: ImageBitmap; // Pre-oriented cache
-  orientation?: number;
+  bitmap?: ImageBitmap;
 }
 
 export interface CompositionSettings {
@@ -32,19 +29,23 @@ export interface CompositionSettings {
 
 export interface RenderContext {
   frame: HTMLImageElement;
-  photo: CanvasImageSource;
-  orientation: number;
+  photo: ImageBitmap;
   settings: CompositionSettings;
 }
 
 interface PhotoFramerUI {
   frameInput: HTMLInputElement;
   photoInput: HTMLInputElement;
-  photoList: HTMLDivElement;
   portraitCanvas: HTMLCanvasElement;
   landscapeCanvas: HTMLCanvasElement;
   portraitMeta: HTMLElement;
   landscapeMeta: HTMLElement;
+  portraitLoading: HTMLDivElement;
+  landscapeLoading: HTMLDivElement;
+  portraitPrevBtn: HTMLButtonElement;
+  portraitNextBtn: HTMLButtonElement;
+  landscapePrevBtn: HTMLButtonElement;
+  landscapeNextBtn: HTMLButtonElement;
   downloadBtn: HTMLButtonElement;
   status: HTMLDivElement;
   frameStatus: HTMLElement;
@@ -74,6 +75,10 @@ class PhotoFramer {
       landscape: { scale: 0.9, offset: 0 },
     },
     exportQuality: "medium" as ExportQuality,
+    previewIndex: {
+      portrait: 0,
+      landscape: 0,
+    },
     isProcessing: false,
   };
 
@@ -91,7 +96,6 @@ class PhotoFramer {
     this.ui = {
       frameInput: document.getElementById("frameInput") as HTMLInputElement,
       photoInput: document.getElementById("photoInput") as HTMLInputElement,
-      photoList: document.getElementById("photoList") as HTMLDivElement,
       portraitCanvas: document.getElementById(
         "portraitPreviewCanvas",
       ) as HTMLCanvasElement,
@@ -104,6 +108,24 @@ class PhotoFramer {
       landscapeMeta: document.getElementById(
         "landscapePreviewMeta",
       ) as HTMLElement,
+      portraitLoading: document.getElementById(
+        "portraitLoading",
+      ) as HTMLDivElement,
+      landscapeLoading: document.getElementById(
+        "landscapeLoading",
+      ) as HTMLDivElement,
+      portraitPrevBtn: document.getElementById(
+        "portraitPrev",
+      ) as HTMLButtonElement,
+      portraitNextBtn: document.getElementById(
+        "portraitNext",
+      ) as HTMLButtonElement,
+      landscapePrevBtn: document.getElementById(
+        "landscapePrev",
+      ) as HTMLButtonElement,
+      landscapeNextBtn: document.getElementById(
+        "landscapeNext",
+      ) as HTMLButtonElement,
       downloadBtn: document.getElementById("downloadZip") as HTMLButtonElement,
       status: document.getElementById("downloadStatus") as HTMLDivElement,
       frameStatus: document.getElementById("frameStatus") as HTMLElement,
@@ -156,6 +178,18 @@ class PhotoFramer {
       const next = (e.target as HTMLSelectElement).value as ExportQuality;
       this.state.exportQuality = next;
     });
+    this.ui.portraitPrevBtn.addEventListener("click", () =>
+      this.cyclePreview("portrait", -1),
+    );
+    this.ui.portraitNextBtn.addEventListener("click", () =>
+      this.cyclePreview("portrait", 1),
+    );
+    this.ui.landscapePrevBtn.addEventListener("click", () =>
+      this.cyclePreview("landscape", -1),
+    );
+    this.ui.landscapeNextBtn.addEventListener("click", () =>
+      this.cyclePreview("landscape", 1),
+    );
 
     const sliderMap: Record<
       string,
@@ -215,27 +249,92 @@ class PhotoFramer {
     }));
 
     this.ui.photoStatus.textContent = `${this.state.photos.length} photos selected`;
-    this.ui.photoList.innerHTML = this.state.photos
-      .map(
-        (p) => `
-        <div class="group relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-100 photo-thumb">
-          <img src="${p.url}" class="h-full w-full object-cover" loading="lazy" />
-        </div>
-      `,
-      )
-      .join("");
+    this.resetPreviewIndices();
+    this.setAllPreviewLoading(this.state.photos.length > 0);
 
     this.renderPreviews();
   }
 
   private async ensurePhotoReady(photo: PhotoItem) {
-    if (!photo.orientation) {
-      photo.orientation = await getExifOrientation(photo.file);
-    }
     if (!photo.bitmap) {
-      photo.bitmap = await createOrientedBitmap(photo.file, photo.orientation);
+      photo.bitmap = await createImageBitmap(photo.file);
     }
     return photo;
+  }
+
+  private cyclePreview(type: PreviewOrientation, delta: number) {
+    this.state.previewIndex[type] += delta;
+    void this.renderPreviews();
+  }
+
+  private resetPreviewIndices() {
+    this.state.previewIndex.portrait = 0;
+    this.state.previewIndex.landscape = 0;
+  }
+
+  private getNavButtons(type: PreviewOrientation) {
+    if (type === "portrait") {
+      return {
+        prev: this.ui.portraitPrevBtn,
+        next: this.ui.portraitNextBtn,
+      };
+    }
+    return {
+      prev: this.ui.landscapePrevBtn,
+      next: this.ui.landscapeNextBtn,
+    };
+  }
+
+  private setNavState(type: PreviewOrientation, count: number) {
+    const { prev, next } = this.getNavButtons(type);
+    const disabled = count <= 1;
+    prev.disabled = disabled;
+    next.disabled = disabled;
+  }
+
+  private getLoadingElement(type: PreviewOrientation) {
+    return type === "portrait"
+      ? this.ui.portraitLoading
+      : this.ui.landscapeLoading;
+  }
+
+  private setPreviewLoading(type: PreviewOrientation, isLoading: boolean) {
+    this.getLoadingElement(type).classList.toggle("active", isLoading);
+  }
+
+  private setAllPreviewLoading(isLoading: boolean) {
+    PREVIEW_ORIENTATIONS.forEach((type) => {
+      this.setPreviewLoading(type, isLoading);
+    });
+  }
+
+  private normalizePreviewIndex(index: number, total: number) {
+    if (total <= 0) return 0;
+    const normalized = ((index % total) + total) % total;
+    return normalized;
+  }
+
+  private async groupPhotosByOrientation() {
+    const grouped: Record<PreviewOrientation, PhotoItem[]> = {
+      portrait: [],
+      landscape: [],
+    };
+
+    // Prepare all photos in parallel to avoid sequential latency.
+    await Promise.all(
+      this.state.photos.map((photo) => this.ensurePhotoReady(photo)),
+    );
+
+    // After all photos are ready, group them by orientation.
+    for (const photo of this.state.photos) {
+      const bitmap = photo.bitmap;
+      if (!bitmap) continue;
+      const type: PreviewOrientation =
+        bitmap.height > bitmap.width ? "portrait" : "landscape";
+      grouped[type].push(photo);
+    }
+
+    return grouped;
   }
 
   private compose(ctx: CanvasRenderingContext2D, data: RenderContext) {
@@ -244,7 +343,7 @@ class PhotoFramer {
       height: data.frame.naturalHeight,
     };
 
-    const bitmap = data.photo as ImageBitmap;
+    const bitmap = data.photo;
     const orientedDims = {
       width: bitmap.width,
       height: bitmap.height,
@@ -298,45 +397,60 @@ class PhotoFramer {
       });
       this.ui.portraitMeta.textContent = this.ui.landscapeMeta.textContent =
         "Upload a frame to begin";
+      PREVIEW_ORIENTATIONS.forEach((type) => {
+        this.setNavState(type, 0);
+      });
+      this.setAllPreviewLoading(false);
       this.ui.downloadBtn.disabled = true;
       return;
     }
 
-    for (const type of ["portrait", "landscape"] as const) {
+    const needsPreparation = this.state.photos.some((p) => !p.bitmap);
+    if (needsPreparation) {
+      this.setAllPreviewLoading(true);
+    } else {
+      this.setAllPreviewLoading(false);
+    }
+
+    const grouped = await this.groupPhotosByOrientation();
+
+    if (needsPreparation) {
+      this.setAllPreviewLoading(false);
+    }
+
+    for (const type of PREVIEW_ORIENTATIONS) {
       const canvas =
         type === "portrait" ? this.ui.portraitCanvas : this.ui.landscapeCanvas;
       const meta =
         type === "portrait" ? this.ui.portraitMeta : this.ui.landscapeMeta;
       const ctx = canvas.getContext("2d")!;
-
-      let matchedPhoto: PhotoItem | undefined;
-      for (const p of this.state.photos) {
-        await this.ensurePhotoReady(p);
-        const bitmap = p.bitmap;
-        if (bitmap) {
-          const pType = bitmap.height > bitmap.width ? "portrait" : "landscape";
-          if (pType === type) {
-            matchedPhoto = p;
-            break;
-          }
-        }
-      }
+      const matches = grouped[type];
+      this.setNavState(type, matches.length);
 
       canvas.width = this.state.frame.naturalWidth;
       canvas.height = this.state.frame.naturalHeight;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (matchedPhoto?.bitmap) {
+      if (matches.length > 0) {
+        const normalizedIndex = this.normalizePreviewIndex(
+          this.state.previewIndex[type],
+          matches.length,
+        );
+        this.state.previewIndex[type] = normalizedIndex;
+        const matchedPhoto = matches[normalizedIndex];
+        const photoBitmap = matchedPhoto.bitmap!;
         this.compose(ctx, {
           frame: this.state.frame,
-          photo: matchedPhoto.bitmap,
-          orientation: matchedPhoto.orientation!,
+          photo: photoBitmap,
           settings: this.state.settings[type],
         });
-        meta.textContent = `${matchedPhoto.name} • ${type}`;
+        meta.textContent = `${matchedPhoto.name} • ${type} (${normalizedIndex + 1}/${matches.length})`;
       } else {
         ctx.drawImage(this.state.frame, 0, 0);
-        meta.textContent = `No ${type} photos selected`;
+        meta.textContent =
+          this.state.photos.length === 0
+            ? "Upload photos to preview"
+            : `No ${type} photos selected`;
       }
     }
 
@@ -362,7 +476,7 @@ class PhotoFramer {
     });
 
     // Prepare data for worker
-    const photosData = [];
+    const photosData: Array<{ name: string; bitmap: ImageBitmap }> = [];
     for (const photo of this.state.photos) {
       await this.ensurePhotoReady(photo);
       // We need to create NEW bitmaps to transfer them to the worker
@@ -370,7 +484,6 @@ class PhotoFramer {
       photosData.push({
         name: photo.name,
         bitmap,
-        orientation: photo.orientation!,
       });
     }
 

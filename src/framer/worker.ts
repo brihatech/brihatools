@@ -1,10 +1,8 @@
 import JSZip from "jszip";
 
-import { drawOrientedImage } from "../lib/canvas";
 import {
   calculateTargetSize,
   type Dimensions,
-  getOrientedDimensions,
   type OrientationType,
 } from "../lib/image";
 
@@ -13,7 +11,6 @@ interface RenderJob {
   photos: Array<{
     name: string;
     bitmap: ImageBitmap;
-    orientation: number;
   }>;
   settings: {
     portrait: { scale: number; offset: number };
@@ -46,17 +43,20 @@ self.onmessage = async (e: MessageEvent<RenderJob>) => {
       total: photos.length,
     });
 
-    const orientedDims = getOrientedDimensions(photo.bitmap, photo.orientation);
+    const photoDims = {
+      width: photo.bitmap.width,
+      height: photo.bitmap.height,
+    };
 
     const orientationType: OrientationType =
-      orientedDims.height > orientedDims.width ? "portrait" : "landscape";
+      photoDims.height > photoDims.width ? "portrait" : "landscape";
 
     const currentSettings = settings[orientationType];
 
     // Layout math in FRAME SPACE (unchanged)
     const { width: targetWidth, height: targetHeight } = calculateTargetSize(
       frameDims,
-      orientedDims,
+      photoDims,
       currentSettings.scale,
       orientationType,
     );
@@ -81,10 +81,8 @@ self.onmessage = async (e: MessageEvent<RenderJob>) => {
     ctx.drawImage(frame, 0, 0);
 
     // Draw photo (never downscaled)
-    drawOrientedImage(
-      ctx,
+    ctx.drawImage(
       photo.bitmap,
-      photo.orientation,
       centerX,
       centerY + offsetValue,
       targetWidth,

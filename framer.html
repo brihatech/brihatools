@@ -70,13 +70,39 @@
                 border-radius: 50%;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.2);
             }
-            /* Photo thumbnail hover effect */
-            .photo-thumb {
-                transition: all 0.2s ease;
+            .preview-loading {
+                position: absolute;
+                inset: 0;
+                z-index: 10;
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+                align-items: center;
+                justify-content: center;
+                pointer-events: none;
+                background: rgba(248,250,252,0.9);
+                opacity: 0;
+                backdrop-filter: blur(2px);
+                transition: opacity 0.25s ease;
             }
-            .photo-thumb:hover {
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                transform: scale(1.05);
+            .preview-loading.active {
+                opacity: 1;
+            }
+            .preview-loading .loading-scroll {
+                width: 56px;
+                height: 56px;
+                border: 4px solid rgba(148,163,184,0.4);
+                border-top-color: #7c3aed;
+                border-radius: 9999px;
+                animation: preview-scroll 0.85s linear infinite;
+            }
+            @keyframes preview-scroll {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(360deg);
+                }
             }
         </style>
     </head>
@@ -130,7 +156,6 @@
                             class="block w-full cursor-pointer rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50/50 file:mr-3 file:rounded-md file:border-0 file:bg-linear-to-r file:from-blue-600 file:to-blue-700 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white file:transition-all hover:file:from-blue-700 hover:file:to-blue-800"
                         />
                         <div class="text-xs text-slate-500 mt-2 ml-1 font-light" id="photoStatus">No photos selected</div>
-                        <div id="photoList" class="grid grid-cols-4 gap-2 mt-3"></div>
                     </section>
 
                     <!-- Settings -->
@@ -200,7 +225,7 @@
                     </div>
                     <button
                         id="downloadZip"
-                        class="w-full h-12 rounded-lg bg-slate-900 text-white px-4 py-3 text-sm font-semibold transition-all duration-200 hover:from-slate-900 hover:to-black hover:shadow-lg disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 shadow-md"
+                        class="w-full h-12 rounded-lg bg-slate-900 text-white disabled:opacity-20 px-4 py-3 text-sm font-semibold transition-all duration-200 hover:from-slate-900 hover:to-black hover:shadow-lg disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 shadow-md"
                         disabled
                     >
                         <svg
@@ -234,11 +259,33 @@
                                     <div class="w-2 h-2 rounded-full bg-purple-500"></div>
                                     <h2 class="text-sm font-semibold text-slate-800 tracking-tight">Portrait Preview</h2>
                                 </div>
-                                <p id="portraitPreviewMeta" class="text-xs text-slate-500 font-light">Upload frame & portrait photos</p>
+                                <div class="flex items-center gap-3">
+                                    <p id="portraitPreviewMeta" class="text-xs text-slate-500 font-light">Upload frame & portrait photos</p>
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            id="portraitPrev"
+                                            type="button"
+                                            class="h-7 px-2 rounded-full border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                                            disabled
+                                        >Prev</button>
+                                        <button
+                                            id="portraitNext"
+                                            type="button"
+                                            class="h-7 px-2 rounded-full border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                                            disabled
+                                        >Next</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="flex-1 flex items-center justify-center p-6 bg-linear-to-br from-slate-50/50 to-white min-h-0">
-                            <div class="w-full h-full rounded-lg border-2 border-dashed border-slate-200 bg-white/60 backdrop-blur-sm flex items-center justify-center">
+                            <div class="w-full h-full rounded-lg border-2 border-dashed border-slate-200 bg-white/60 backdrop-blur-sm flex items-center justify-center relative overflow-hidden" aria-busy="false">
+                                <div id="portraitLoading" class="preview-loading" aria-hidden="true">
+                                    <div class="loading-scroll"></div>
+                                </div>
+                                <div class="sr-only" role="status" aria-live="polite">
+                                    Preparing portrait preview…
+                                </div>
                                 <canvas id="portraitPreviewCanvas" class="max-w-full max-h-full object-contain rounded-lg"></canvas>
                             </div>
                         </div>
@@ -252,11 +299,30 @@
                                     <div class="w-2 h-2 rounded-full bg-blue-500"></div>
                                     <h2 class="text-sm font-semibold text-slate-800 tracking-tight">Landscape Preview</h2>
                                 </div>
-                                <p id="landscapePreviewMeta" class="text-xs text-slate-500 font-light">Upload frame & landscape photos</p>
+                                <div class="flex items-center gap-3">
+                                    <p id="landscapePreviewMeta" class="text-xs text-slate-500 font-light">Upload frame & landscape photos</p>
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            id="landscapePrev"
+                                            type="button"
+                                            class="h-7 px-2 rounded-full border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                                            disabled
+                                        >Prev</button>
+                                        <button
+                                            id="landscapeNext"
+                                            type="button"
+                                            class="h-7 px-2 rounded-full border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                                            disabled
+                                        >Next</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="flex-1 flex items-center justify-center p-6 bg-linear-to-br from-slate-50/50 to-white min-h-0">
-                            <div class="w-full h-full rounded-lg border-2 border-dashed border-slate-200 bg-white/60 backdrop-blur-sm flex items-center justify-center">
+                            <div class="w-full h-full rounded-lg border-2 border-dashed border-slate-200 bg-white/60 backdrop-blur-sm flex items-center justify-center relative overflow-hidden">
+                                <div id="landscapeLoading" class="preview-loading" aria-hidden="true">
+                                    <div class="loading-scroll"></div>
+                                </div>
                                 <canvas id="landscapePreviewCanvas" class="max-w-full max-h-full object-contain rounded-lg"></canvas>
                             </div>
                         </div>

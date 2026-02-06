@@ -53,21 +53,3 @@ export function calculateTargetSize(
 
   return { width: targetWidth, height: targetHeight };
 }
-
-/**
- * Returns dimensions considering EXIF rotation.
- */
-export function getOrientedDimensions(
-  source: { width: number; height: number } | HTMLImageElement,
-  orientation: number,
-): Dimensions {
-  const width = "naturalWidth" in source ? source.naturalWidth : source.width;
-  const height =
-    "naturalHeight" in source ? source.naturalHeight : source.height;
-
-  // EXIF 5-8 indicate 90 or 270 degree rotation
-  if (orientation >= 5 && orientation <= 8) {
-    return { width: height, height: width };
-  }
-  return { width, height };
-}
