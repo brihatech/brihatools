@@ -187,6 +187,17 @@
 
                 <!-- Download Button (Fixed at Bottom) -->
                 <div class="p-6 border-t border-slate-200 bg-linear-to-b from-white to-slate-50">
+                    <div class="mb-4">
+                        <label for="exportQuality" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Export Quality</label>
+                        <select
+                            id="exportQuality"
+                            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                        >
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
                     <button
                         id="downloadZip"
                         class="w-full h-12 rounded-lg bg-slate-900 text-white px-4 py-3 text-sm font-semibold transition-all duration-200 hover:from-slate-900 hover:to-black hover:shadow-lg disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 shadow-md"

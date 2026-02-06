@@ -7,6 +7,14 @@ import {
 
 import { createOrientedBitmap } from "../lib/canvas";
 
+type ExportQuality = "low" | "medium" | "high";
+
+const EXPORT_QUALITY_SCALE: Record<ExportQuality, number> = {
+  low: 1.2,
+  medium: 2,
+  high: 5,
+};
+
 // --- Types ---
 interface PhotoItem {
   file: File;
@@ -41,6 +49,7 @@ interface PhotoFramerUI {
   status: HTMLDivElement;
   frameStatus: HTMLElement;
   photoStatus: HTMLElement;
+  qualitySelect: HTMLSelectElement;
   sliders: {
     portraitScale: HTMLInputElement;
     portraitOffset: HTMLInputElement;
@@ -64,6 +73,7 @@ class PhotoFramer {
       portrait: { scale: 0.7, offset: 0 },
       landscape: { scale: 0.9, offset: 0 },
     },
+    exportQuality: "medium" as ExportQuality,
     isProcessing: false,
   };
 
@@ -98,6 +108,9 @@ class PhotoFramer {
       status: document.getElementById("downloadStatus") as HTMLDivElement,
       frameStatus: document.getElementById("frameStatus") as HTMLElement,
       photoStatus: document.getElementById("photoStatus") as HTMLElement,
+      qualitySelect: document.getElementById(
+        "exportQuality",
+      ) as HTMLSelectElement,
       sliders: {
         portraitScale: document.getElementById(
           "portraitScale",
@@ -127,6 +140,8 @@ class PhotoFramer {
         ) as HTMLSpanElement,
       },
     };
+
+    this.ui.qualitySelect.value = this.state.exportQuality;
   }
 
   private bindEvents() {
@@ -137,6 +152,10 @@ class PhotoFramer {
       this.handlePhotosUpload(),
     );
     this.ui.downloadBtn.addEventListener("click", () => this.handleDownload());
+    this.ui.qualitySelect.addEventListener("change", (e: Event) => {
+      const next = (e.target as HTMLSelectElement).value as ExportQuality;
+      this.state.exportQuality = next;
+    });
 
     const sliderMap: Record<
       string,
@@ -266,6 +285,10 @@ class PhotoFramer {
       this.state.settings.landscape.offset.toFixed(2);
   }
 
+  private getExportScale() {
+    return EXPORT_QUALITY_SCALE[this.state.exportQuality];
+  }
+
   private async renderPreviews() {
     if (!this.state.frame) {
       [this.ui.portraitCanvas, this.ui.landscapeCanvas].forEach((c) => {
@@ -377,6 +400,7 @@ class PhotoFramer {
         frame: frameBitmap,
         photos: photosData,
         settings: this.state.settings,
+        exportScale: this.getExportScale(),
       },
       transferables,
     );

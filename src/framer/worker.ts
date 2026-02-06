@@ -19,10 +19,11 @@ interface RenderJob {
     portrait: { scale: number; offset: number };
     landscape: { scale: number; offset: number };
   };
+  exportScale: number;
 }
 
 self.onmessage = async (e: MessageEvent<RenderJob>) => {
-  const { frame, photos, settings } = e.data;
+  const { frame, photos, settings, exportScale } = e.data;
 
   const zip = new JSZip();
 
@@ -63,12 +64,6 @@ self.onmessage = async (e: MessageEvent<RenderJob>) => {
     const centerX = (frameDims.width - targetWidth) / 2;
     const centerY = (frameDims.height - targetHeight) / 2;
     const offsetValue = currentSettings.offset * frameDims.height;
-
-    /**
-     * EXPORT SCALE
-     * Modify the export scale to allow "low", "medium" and "high" options
-     */
-    const exportScale = 2;
 
     // Resize canvas to final export resolution
     canvas.width = Math.round(frameDims.width * exportScale);
