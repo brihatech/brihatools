@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Photo Framer | brihatools</title>
+        <link rel="stylesheet" href="./src/style.css">
+        <style>
+            body {
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            }
+            .mono {
+                font-family: 'JetBrains Mono', monospace;
+            }
+            /* Custom scrollbar */
+            ::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+            ::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 4px;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+            /* Smooth gradient overlay */
+            .gradient-overlay {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            }
+            /* Enhanced range slider */
+            input[type="range"] {
+                -webkit-appearance: none;
+                appearance: none;
+                cursor: pointer;
+                background: transparent;
+            }
+            input[type="range"]::-webkit-slider-track {
+                height: 4px;
+                background: #e2e8f0;
+                border-radius: 2px;
+            }
+            input[type="range"]::-webkit-slider-thumb {
+                width: 14px;
+                height: 14px;
+                margin-top: -5px;
+                -webkit-appearance: none;
+                appearance: none;
+                background: #667eea;
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            }
+            input[type="range"]::-webkit-slider-thumb:hover {
+                background: #764ba2;
+            }
+            input[type="range"]::-moz-range-track {
+                height: 4px;
+                background: #e2e8f0;
+                border-radius: 2px;
+            }
+            input[type="range"]::-moz-range-thumb {
+                width: 14px;
+                height: 14px;
+                background: #667eea;
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            }
+            .preview-loading {
+                position: absolute;
+                inset: 0;
+                z-index: 10;
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+                align-items: center;
+                justify-content: center;
+                pointer-events: none;
+                background: rgba(248,250,252,0.9);
+                opacity: 0;
+                backdrop-filter: blur(2px);
+                transition: opacity 0.25s ease;
+            }
+            .preview-loading.active {
+                opacity: 1;
+            }
+            .preview-loading .loading-scroll {
+                width: 56px;
+                height: 56px;
+                border: 4px solid rgba(148,163,184,0.4);
+                border-top-color: #7c3aed;
+                border-radius: 9999px;
+                animation: preview-scroll 0.85s linear infinite;
+            }
+            @keyframes preview-scroll {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+        </style>
+    </head>
+    <body class="bg-linear-to-br from-slate-50 to-slate-100 text-slate-900 h-screen overflow-hidden">
+        <div class="flex h-screen">
+            <!-- Sidebar -->
+            <aside class="w-80 bg-white border-r border-slate-200 flex flex-col shadow-lg">
+                <!-- App Header -->
+                <div class="px-6 py-5 border-b border-slate-200 gradient-overlay">
+                    <div class="flex items-center gap-3 mb-1">
+                        <!-- <div class="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                                <circle cx="9" cy="9" r="2"/>
+                                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                            </svg>
+                        </div> -->
+                        <h1 class="text-xl font-semibold text-white tracking-tight">Photo Framer</h1>
+                    </div>
+                    <p class="text-xs text-white/80 font-light">Batch compose photos onto branded frames</p>
+                </div>
+
+                <!-- Scrollable Content -->
+                <div class="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+                    <!-- Frame Upload -->
+                    <section>
+                        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
+                            <span class="w-1 h-4 bg-linear-to-b from-purple-500 to-purple-600 rounded-full"></span>
+                            Frame Template
+                        </h2>
+                        <input
+                            id="frameInput"
+                            type="file"
+                            accept="image/*"
+                            class="block w-full cursor-pointer rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs text-slate-700 transition-colors hover:border-purple-400 hover:bg-purple-50/50 file:mr-3 file:rounded-md file:border-0 file:bg-linear-to-r file:from-purple-600 file:to-purple-700 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white file:transition-all hover:file:from-purple-700 hover:file:to-purple-800"
+                        />
+                        <div id="frameStatus" class="text-xs text-slate-500 mt-2 ml-1 font-light">No frame selected</div>
+                    </section>
+
+                    <!-- Photos Upload -->
+                    <section>
+                        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
+                            <span class="w-1 h-4 bg-linear-to-b from-blue-500 to-blue-600 rounded-full"></span>
+                            Source Photos
+                        </h2>
+                        <input
+                            id="photoInput"
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            class="block w-full cursor-pointer rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50/50 file:mr-3 file:rounded-md file:border-0 file:bg-linear-to-r file:from-blue-600 file:to-blue-700 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white file:transition-all hover:file:from-blue-700 hover:file:to-blue-800"
+                        />
+                        <div class="text-xs text-slate-500 mt-2 ml-1 font-light" id="photoStatus">No photos selected</div>
+                    </section>
+
+                    <!-- Settings -->
+                    <section>
+                        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
+                            <span class="w-1 h-4 bg-linear-to-b from-emerald-500 to-emerald-600 rounded-full"></span>
+                            Composition Settings
+                        </h2>
+                        <div class="space-y-4">
+                            <!-- Portrait Settings -->
+                            <div class="bg-linear-to-br from-slate-50 to-slate-100/50 rounded-lg p-3 border border-slate-200/60">
+                                <div class="text-xs font-medium text-slate-700 mb-3 tracking-wide">Portrait Mode</div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <div class="flex items-center justify-between text-xs mb-1.5">
+                                            <span class="text-slate-600 font-light">Scale</span>
+                                            <span id="portraitScaleValue" class="mono text-purple-600 font-medium">0.70</span>
+                                        </div>
+                                        <input id="portraitScale" type="range" min="0.1" max="1" step="0.01" value="0.7" class="w-full" />
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center justify-between text-xs mb-1.5">
+                                            <span class="text-slate-600 font-light">Offset</span>
+                                            <span id="portraitOffsetValue" class="mono text-purple-600 font-medium">0.00</span>
+                                        </div>
+                                        <input id="portraitOffset" type="range" min="-1" max="1" step="0.01" value="0" class="w-full" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Landscape Settings -->
+                            <div class="bg-linear-to-br from-slate-50 to-slate-100/50 rounded-lg p-3 border border-slate-200/60">
+                                <div class="text-xs font-medium text-slate-700 mb-3 tracking-wide">Landscape Mode</div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <div class="flex items-center justify-between text-xs mb-1.5">
+                                            <span class="text-slate-600 font-light">Scale</span>
+                                            <span id="landscapeScaleValue" class="mono text-blue-600 font-medium">0.90</span>
+                                        </div>
+                                        <input id="landscapeScale" type="range" min="0.1" max="1" step="0.01" value="0.9" class="w-full" />
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center justify-between text-xs mb-1.5">
+                                            <span class="text-slate-600 font-light">Offset</span>
+                                            <span id="landscapeOffsetValue" class="mono text-blue-600 font-medium">0.00</span>
+                                        </div>
+                                        <input id="landscapeOffset" type="range" min="-1" max="1" step="0.01" value="0" class="w-full" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Download Button (Fixed at Bottom) -->
+                <div class="p-6 border-t border-slate-200 bg-linear-to-b from-white to-slate-50">
+                    <div class="mb-4">
+                        <label for="exportQuality" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Export Quality</label>
+                        <select
+                            id="exportQuality"
+                            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                        >
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <button
+                        id="downloadZip"
+                        class="w-full h-12 rounded-lg bg-slate-900 text-white disabled:opacity-20 px-4 py-3 text-sm font-semibold transition-all duration-200 hover:from-slate-900 hover:to-black hover:shadow-lg disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 shadow-md"
+                        disabled
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M2.99969 17.0002C2.99969 17.9302 2.99969 18.3952 3.10192 18.7767C3.37932 19.8119 4.18796 20.6206 5.22324 20.898C5.60474 21.0002 6.06972 21.0002 6.99969 21.0002L16.9997 21.0002C17.9297 21.0002 18.3947 21.0002 18.7762 20.898C19.8114 20.6206 20.6201 19.8119 20.8975 18.7767C20.9997 18.3952 20.9997 17.9302 20.9997 17.0002" />
+                            <path d="M16.4998 11.5002C16.4998 11.5002 13.1856 16.0002 11.9997 16.0002C10.8139 16.0002 7.49976 11.5002 7.49976 11.5002M11.9997 15.0002V3.00016" />
+                        </svg>
+                        Download All (ZIP)
+                    </button>
+                    <div id="downloadStatus" class="text-xs text-slate-500 mt-2 text-center font-light"></div>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="flex-1 p-6 overflow-auto">
+                <div class="h-full grid gap-6 lg:grid-cols-2">
+                    <!-- Portrait Preview -->
+                    <div class="rounded-xl border border-slate-200 bg-white shadow-md flex flex-col overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100 bg-linear-to-r from-slate-50 to-white">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-2 h-2 rounded-full bg-purple-500"></div>
+                                    <h2 class="text-sm font-semibold text-slate-800 tracking-tight">Portrait Preview</h2>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <p id="portraitPreviewMeta" class="text-xs text-slate-500 font-light">Upload frame & portrait photos</p>
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            id="portraitPrev"
+                                            type="button"
+                                            class="h-7 px-2 rounded-full border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                                            disabled
+                                        >Prev</button>
+                                        <button
+                                            id="portraitNext"
+                                            type="button"
+                                            class="h-7 px-2 rounded-full border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                                            disabled
+                                        >Next</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex-1 flex items-center justify-center p-6 bg-linear-to-br from-slate-50/50 to-white min-h-0">
+                            <div class="w-full h-full rounded-lg border-2 border-dashed border-slate-200 bg-white/60 backdrop-blur-sm flex items-center justify-center relative overflow-hidden" aria-busy="false">
+                                <div id="portraitLoading" class="preview-loading" aria-hidden="true">
+                                    <div class="loading-scroll"></div>
+                                </div>
+                                <div class="sr-only" role="status" aria-live="polite">
+                                    Preparing portrait preview…
+                                </div>
+                                <canvas id="portraitPreviewCanvas" class="max-w-full max-h-full object-contain rounded-lg"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Landscape Preview -->
+                    <div class="rounded-xl border border-slate-200 bg-white shadow-md flex flex-col overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100 bg-linear-to-r from-slate-50 to-white">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                                    <h2 class="text-sm font-semibold text-slate-800 tracking-tight">Landscape Preview</h2>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <p id="landscapePreviewMeta" class="text-xs text-slate-500 font-light">Upload frame & landscape photos</p>
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            id="landscapePrev"
+                                            type="button"
+                                            class="h-7 px-2 rounded-full border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                                            disabled
+                                        >Prev</button>
+                                        <button
+                                            id="landscapeNext"
+                                            type="button"
+                                            class="h-7 px-2 rounded-full border border-slate-200 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                                            disabled
+                                        >Next</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex-1 flex items-center justify-center p-6 bg-linear-to-br from-slate-50/50 to-white min-h-0">
+                            <div class="w-full h-full rounded-lg border-2 border-dashed border-slate-200 bg-white/60 backdrop-blur-sm flex items-center justify-center relative overflow-hidden">
+                                <div id="landscapeLoading" class="preview-loading" aria-hidden="true">
+                                    <div class="loading-scroll"></div>
+                                </div>
+                                <canvas id="landscapePreviewCanvas" class="max-w-full max-h-full object-contain rounded-lg"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <script type="module" src="./src/framer/main.ts"></script>
+    </body>
+</html>
