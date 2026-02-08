@@ -13,7 +13,8 @@ const ORIGINAL_SHAPE_TENSOR_NAME = "original_shape";
 const NORMALIZE_MEAN = [0.485, 0.456, 0.406];
 const NORMALIZE_STD = [0.229, 0.224, 0.225];
 
-ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
+ort.env.wasm.wasmPaths =
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.1/dist/";
 
 let modelSessionPromise: Promise<ort.InferenceSession> | null = null;
 let processorSessionPromise: Promise<ort.InferenceSession> | null = null;

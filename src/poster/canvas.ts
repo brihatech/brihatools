@@ -127,6 +127,10 @@ export type PosterConfig = {
   roleText: HTMLElement;
   fullName: string;
   designation: string;
+  nameOffsetX: number;
+  nameOffsetY: number;
+  roleOffsetX: number;
+  roleOffsetY: number;
   offsetX: number;
   offsetY: number;
   scale: number;
@@ -143,6 +147,10 @@ export async function generatePoster(config: PosterConfig) {
     roleText,
     fullName,
     designation,
+    nameOffsetX,
+    nameOffsetY,
+    roleOffsetX,
+    roleOffsetY,
     offsetX,
     offsetY,
     scale,
@@ -280,8 +288,13 @@ export async function generatePoster(config: PosterConfig) {
   const roleTop = frameH - bottomInset - roleSpec.height;
   const nameTop = roleTop - gapFrame - nameSpec.height;
 
-  drawPill(nameSpec, leftInset, nameTop);
-  drawPill(roleSpec, leftInset, roleTop);
+  const nameX = leftInset + nameOffsetX * sx;
+  const nameY = nameTop + nameOffsetY * sy;
+  const roleX = leftInset + roleOffsetX * sx;
+  const roleY = roleTop + roleOffsetY * sy;
+
+  drawPill(nameSpec, nameX, nameY);
+  drawPill(roleSpec, roleX, roleY);
 
   await downloadCanvasPng(canvas, "poster.png");
 }

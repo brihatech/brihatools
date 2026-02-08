@@ -12,7 +12,7 @@ Alpine.data("posterBuilder", () => {
   let currentPhotoObjectUrl: string | null = null;
 
   // Drag state (not reactive)
-  let isDragging = false;
+  let dragTarget: "photo" | "name" | "role" | null = null;
   let startX = 0;
   let startY = 0;
 
@@ -46,6 +46,10 @@ Alpine.data("posterBuilder", () => {
     // Text
     fullName: "",
     designation: "",
+    nameOffsetX: 0,
+    nameOffsetY: 0,
+    roleOffsetX: 0,
+    roleOffsetY: 0,
 
     // Suggestions
     nameSuggestions: [] as string[],
@@ -55,6 +59,34 @@ Alpine.data("posterBuilder", () => {
 
     get photoTransformStyle() {
       return `transform: translate(-50%, -50%) translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale});`;
+    },
+
+    get nameTransformStyle() {
+      return `transform: translate(${this.nameOffsetX}px, ${this.nameOffsetY}px);`;
+    },
+
+    get roleTransformStyle() {
+      return `transform: translate(${this.roleOffsetX}px, ${this.roleOffsetY}px);`;
+    },
+
+    clampDragDelta(target: HTMLElement, dx: number, dy: number) {
+      const frameOverlay = this.ref<HTMLDivElement>("frameOverlay");
+      if (!frameOverlay) {
+        return { dx, dy };
+      }
+
+      const frameRect = frameOverlay.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+
+      const minDx = frameRect.left - targetRect.left;
+      const maxDx = frameRect.right - targetRect.right;
+      const minDy = frameRect.top - targetRect.top;
+      const maxDy = frameRect.bottom - targetRect.bottom;
+
+      const clampedDx = Math.min(Math.max(dx, minDx), maxDx);
+      const clampedDy = Math.min(Math.max(dy, minDy), maxDy);
+
+      return { dx: clampedDx, dy: clampedDy };
     },
 
     ref<T = unknown>(key: string): T | undefined {
@@ -176,7 +208,7 @@ Alpine.data("posterBuilder", () => {
       if (!this.hasPhoto) return;
       event.preventDefault();
 
-      isDragging = true;
+      dragTarget = "photo";
       startX = event.clientX;
       startY = event.clientY;
 
@@ -189,7 +221,7 @@ Alpine.data("posterBuilder", () => {
     },
 
     onPhotoPointerMove(event: PointerEvent) {
-      if (!isDragging) return;
+      if (dragTarget !== "photo") return;
 
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
@@ -200,13 +232,98 @@ Alpine.data("posterBuilder", () => {
     },
 
     onPhotoPointerUp(event: PointerEvent) {
-      isDragging = false;
+      if (dragTarget !== "photo") return;
+      dragTarget = null;
       const photoImage = this.ref<HTMLImageElement>("photoImage");
       if (photoImage) {
         photoImage.classList.remove("cursor-grabbing");
         photoImage.classList.add("cursor-grab");
         if (photoImage.hasPointerCapture(event.pointerId)) {
           photoImage.releasePointerCapture(event.pointerId);
+        }
+      }
+    },
+
+    onNamePointerDown(event: PointerEvent) {
+      event.preventDefault();
+
+      dragTarget = "name";
+      startX = event.clientX;
+      startY = event.clientY;
+
+      const nameText = this.ref<HTMLElement>("nameText");
+      if (nameText) {
+        nameText.setPointerCapture(event.pointerId);
+        nameText.classList.add("cursor-grabbing");
+        nameText.classList.remove("cursor-grab");
+      }
+    },
+
+    onNamePointerMove(event: PointerEvent) {
+      if (dragTarget !== "name") return;
+
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      const nameText = this.ref<HTMLElement>("nameText");
+      if (!nameText) return;
+      const clamped = this.clampDragDelta(nameText, dx, dy);
+      this.nameOffsetX += clamped.dx;
+      this.nameOffsetY += clamped.dy;
+      startX = event.clientX;
+      startY = event.clientY;
+    },
+
+    onNamePointerUp(event: PointerEvent) {
+      if (dragTarget !== "name") return;
+      dragTarget = null;
+      const nameText = this.ref<HTMLElement>("nameText");
+      if (nameText) {
+        nameText.classList.remove("cursor-grabbing");
+        nameText.classList.add("cursor-grab");
+        if (nameText.hasPointerCapture(event.pointerId)) {
+          nameText.releasePointerCapture(event.pointerId);
+        }
+      }
+    },
+
+    onRolePointerDown(event: PointerEvent) {
+      event.preventDefault();
+
+      dragTarget = "role";
+      startX = event.clientX;
+      startY = event.clientY;
+
+      const roleText = this.ref<HTMLElement>("roleText");
+      if (roleText) {
+        roleText.setPointerCapture(event.pointerId);
+        roleText.classList.add("cursor-grabbing");
+        roleText.classList.remove("cursor-grab");
+      }
+    },
+
+    onRolePointerMove(event: PointerEvent) {
+      if (dragTarget !== "role") return;
+
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      const roleText = this.ref<HTMLElement>("roleText");
+      if (!roleText) return;
+      const clamped = this.clampDragDelta(roleText, dx, dy);
+      this.roleOffsetX += clamped.dx;
+      this.roleOffsetY += clamped.dy;
+      startX = event.clientX;
+      startY = event.clientY;
+    },
+
+    onRolePointerUp(event: PointerEvent) {
+      if (dragTarget !== "role") return;
+      dragTarget = null;
+      const roleText = this.ref<HTMLElement>("roleText");
+      if (roleText) {
+        roleText.classList.remove("cursor-grabbing");
+        roleText.classList.add("cursor-grab");
+        if (roleText.hasPointerCapture(event.pointerId)) {
+          roleText.releasePointerCapture(event.pointerId);
         }
       }
     },
@@ -261,6 +378,10 @@ Alpine.data("posterBuilder", () => {
           roleText,
           fullName: this.fullName,
           designation: this.designation,
+          nameOffsetX: this.nameOffsetX,
+          nameOffsetY: this.nameOffsetY,
+          roleOffsetX: this.roleOffsetX,
+          roleOffsetY: this.roleOffsetY,
           offsetX: this.offsetX,
           offsetY: this.offsetY,
           scale: this.scale,
