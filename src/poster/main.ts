@@ -1,4 +1,5 @@
 import * as ort from "onnxruntime-web";
+import { getTransliterateSuggestions } from "react-transliterate";
 
 type Rect = {
   x: number;
@@ -182,6 +183,12 @@ const roleInput = document.getElementById(
 ) as HTMLInputElement | null;
 const nameText = document.getElementById("nameText") as HTMLElement | null;
 const roleText = document.getElementById("roleText") as HTMLElement | null;
+const nameSuggestions = document.getElementById(
+  "nameSuggestions",
+) as HTMLDivElement | null;
+const roleSuggestions = document.getElementById(
+  "roleSuggestions",
+) as HTMLDivElement | null;
 
 if (
   frameButtons.length === 0 ||
@@ -201,7 +208,9 @@ if (
   !nameInput ||
   !roleInput ||
   !nameText ||
-  !roleText
+  !roleText ||
+  !nameSuggestions ||
+  !roleSuggestions
 ) {
   throw new Error("Poster builder elements are missing.");
 }
@@ -217,6 +226,9 @@ let removeBgUsed = false;
 let modelSessionPromise: Promise<ort.InferenceSession> | null = null;
 let processorSessionPromise: Promise<ort.InferenceSession> | null = null;
 let currentPhotoObjectUrl: string | null = null;
+
+const TRANSLITERATE_LANG = "ne";
+const TRANSLITERATE_DEBOUNCE_MS = 180;
 
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
 
@@ -758,15 +770,177 @@ exportButton.addEventListener("click", () => {
   exportPoster();
 });
 
-nameInput.addEventListener("input", (event) => {
-  const target = event.target as HTMLInputElement;
-  nameText.textContent = target.value || "Full Name";
-});
+const setSuggestionsVisibility = (
+  container: HTMLDivElement,
+  visible: boolean,
+) => {
+  container.classList.toggle("hidden", !visible);
+};
 
-roleInput.addEventListener("input", (event) => {
-  const target = event.target as HTMLInputElement;
-  roleText.textContent = target.value || "Designation";
-});
+const clearSuggestions = (container: HTMLDivElement) => {
+  container.innerHTML = "";
+  setSuggestionsVisibility(container, false);
+};
+
+const splitByCursor = (input: HTMLInputElement) => {
+  const value = input.value;
+  const cursorIndex = input.selectionStart ?? value.length;
+  return {
+    before: value.slice(0, cursorIndex),
+    after: value.slice(cursorIndex),
+  };
+};
+
+const extractLastToken = (text: string) => {
+  const match = text.match(/(\S+)\s*$/);
+  if (!match) {
+    return { token: "", prefix: text };
+  }
+  const token = match[1];
+  const prefix = text.slice(0, match.index ?? 0);
+  return { token, prefix };
+};
+
+const applySuggestion = (
+  input: HTMLInputElement,
+  suggestion: string,
+  container: HTMLDivElement,
+) => {
+  const { before, after } = splitByCursor(input);
+  const { prefix } = extractLastToken(before);
+  input.value = `${prefix}${suggestion}${after}`;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  const newCursor = (prefix + suggestion).length;
+  input.setSelectionRange(newCursor, newCursor);
+  clearSuggestions(container);
+};
+
+const renderSuggestions = (
+  container: HTMLDivElement,
+  suggestions: string[],
+  onPick: (value: string) => void,
+) => {
+  container.innerHTML = "";
+  if (suggestions.length === 0) {
+    setSuggestionsVisibility(container, false);
+    return;
+  }
+
+  suggestions.forEach((suggestion, index) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className =
+      "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100";
+    if (index === 0) {
+      item.classList.add("bg-slate-100");
+    }
+    item.textContent = suggestion;
+    item.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      onPick(suggestion);
+    });
+    container.appendChild(item);
+  });
+
+  setSuggestionsVisibility(container, true);
+};
+
+const attachTransliteration = (
+  input: HTMLInputElement,
+  output: HTMLElement,
+  container: HTMLDivElement,
+  placeholder: string,
+) => {
+  let debounceHandle: number | null = null;
+  let latestRequestId = 0;
+  let suppressNextSuggestions = false;
+
+  const updateOutput = () => {
+    output.textContent = input.value || placeholder;
+  };
+
+  const fetchSuggestions = async () => {
+    if (suppressNextSuggestions) {
+      return;
+    }
+    const { before } = splitByCursor(input);
+    const { token } = extractLastToken(before);
+    if (!token.trim()) {
+      clearSuggestions(container);
+      return;
+    }
+
+    const requestId = (latestRequestId += 1);
+    try {
+      const suggestions = await getTransliterateSuggestions(token, {
+        lang: TRANSLITERATE_LANG,
+        numOptions: 6,
+        showCurrentWordAsLastSuggestion: true,
+      });
+
+      if (requestId !== latestRequestId) {
+        return;
+      }
+      renderSuggestions(container, suggestions, applySuggestionAndPause);
+    } catch (error) {
+      console.error("Transliteration error:", error);
+    }
+  };
+
+  const scheduleSuggestions = () => {
+    if (debounceHandle) {
+      window.clearTimeout(debounceHandle);
+    }
+    debounceHandle = window.setTimeout(
+      fetchSuggestions,
+      TRANSLITERATE_DEBOUNCE_MS,
+    );
+  };
+
+  const applySuggestionAndPause = (suggestion: string) => {
+    suppressNextSuggestions = true;
+    applySuggestion(input, suggestion, container);
+  };
+
+  input.addEventListener("input", () => {
+    updateOutput();
+    if (suppressNextSuggestions) {
+      suppressNextSuggestions = false;
+      clearSuggestions(container);
+      return;
+    }
+    scheduleSuggestions();
+  });
+
+  input.addEventListener("focus", () => {
+    scheduleSuggestions();
+  });
+
+  input.addEventListener("blur", () => {
+    window.setTimeout(() => clearSuggestions(container), 100);
+  });
+
+  input.addEventListener("keydown", (event) => {
+    const shouldApply =
+      event.key === "Enter" || event.key === "Tab" || event.key === "Return";
+    if (!shouldApply) {
+      return;
+    }
+
+    const firstItem = container.querySelector("button");
+    if (!firstItem) {
+      return;
+    }
+
+    event.preventDefault();
+    applySuggestionAndPause(firstItem.textContent || "");
+  });
+
+  updateOutput();
+};
+
+attachTransliteration(nameInput, nameText, nameSuggestions, "Full Name");
+attachTransliteration(roleInput, roleText, roleSuggestions, "Designation");
 
 window.addEventListener("resize", () => {
   applyTransform();

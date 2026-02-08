@@ -30,6 +30,7 @@
     "onnxruntime-web": "^1.24.1",
     "pdfjs-dist": "^5.4.624",
     "preeti": "^1.0.3",
+    "react-transliterate": "^1.1.9",
     "tailwindcss": "^4.1.18",
     "xlsx": "^0.18.5"
   }
