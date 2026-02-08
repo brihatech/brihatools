@@ -99,7 +99,12 @@ export function inferColumnStopsFromDataRows(
   columnXs.sort((a, b) => a - b);
   const stops: number[] = [];
   for (let i = 0; i < columnXs.length - 1; i++) {
-    stops.push((columnXs[i]! + columnXs[i + 1]!) / 2);
+    const left = columnXs[i];
+    const right = columnXs[i + 1];
+    if (typeof left !== "number" || typeof right !== "number") {
+      continue;
+    }
+    stops.push((left + right) / 2);
   }
   return stops;
 }
@@ -125,7 +130,13 @@ export function collectMainTable(
   headerIdx: number,
 ): string[][] {
   const table: string[][] = [];
-  table.push(rowToColumns(rows[headerIdx]!, stops));
+
+  const headerRow = rows[headerIdx];
+  if (!headerRow) {
+    return table;
+  }
+
+  table.push(rowToColumns(headerRow, stops));
 
   for (const r of rows.slice(headerIdx + 1)) {
     if (!isLikelyDataRow(r)) continue;

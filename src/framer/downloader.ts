@@ -1,19 +1,23 @@
 import type { PhotoManager } from "./photoLoader";
-import type { PhotoFramerUI } from "./ui";
 import { getExportScale, type PhotoFramerState } from "./state";
+
+export interface DownloadHooks {
+  onStatus: (text: string) => void;
+  onBusyChange: (busy: boolean) => void;
+}
 
 export const handleDownload = async (
   state: PhotoFramerState,
-  ui: PhotoFramerUI,
   photoManager: PhotoManager,
+  hooks: DownloadHooks,
 ) => {
   if (!state.frameBitmap || state.photos.length === 0 || state.isProcessing) {
     return;
   }
 
   state.isProcessing = true;
-  ui.downloadBtn.disabled = true;
-  ui.status.textContent = "Preparing photos...";
+  hooks.onBusyChange(true);
+  hooks.onStatus("Preparing photos...");
 
   const worker = new Worker(new URL("./worker.ts", import.meta.url), {
     type: "module",
@@ -31,7 +35,7 @@ export const handleDownload = async (
   worker.onmessage = (event) => {
     const { type, current, total, blob } = event.data;
     if (type === "progress") {
-      ui.status.textContent = `Processing ${current}/${total}...`;
+      hooks.onStatus(`Processing ${current}/${total}...`);
       return;
     }
 
@@ -41,9 +45,9 @@ export const handleDownload = async (
       link.download = "framed-photos.zip";
       link.click();
 
-      ui.status.textContent = "Done!";
+      hooks.onStatus("Done!");
       state.isProcessing = false;
-      ui.downloadBtn.disabled = false;
+      hooks.onBusyChange(false);
       worker.terminate();
     }
   };

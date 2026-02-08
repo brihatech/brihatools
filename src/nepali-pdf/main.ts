@@ -1,5 +1,7 @@
 import * as XLSX from "xlsx";
 
+import { getAlpine, startAlpine } from "@/alpine";
+
 import { basenameNoExt, downloadBlob } from "./download";
 import { extractAllPagesFromPdfArrayBuffer } from "./pdf";
 import {
@@ -9,127 +11,155 @@ import {
   inferColumnStopsFromDataRows,
   toCsv,
 } from "./table";
-import {
-  initUI,
-  renderPreview,
-  setBusy,
-  setExportEnabled,
-  setProcessingText,
-} from "./ui";
-
-let lastTable: string[][] | null = null;
-let lastBaseName = "table";
 
 const DEFAULT_Y_TOLERANCE = 2.0;
 const DEFAULT_PREVIEW_ROWS = 40;
 
-let extractRunId = 0;
+const Alpine = getAlpine();
 
-async function extract(ui: ReturnType<typeof initUI>, runId: number) {
-  const file = ui.pdfInput.files?.[0];
-  if (!file) return;
+Alpine.data("nepaliPdfExtractor", () => {
+  let extractRunId = 0;
 
-  lastBaseName = basenameNoExt(file.name) || "table";
-  ui.exportStatus.textContent = "";
-  ui.warning.textContent = "";
+  return {
+    busy: false,
 
-  setBusy(ui, true);
-  setExportEnabled(ui, false);
+    pdfName: "",
+    pdfSizeKb: 0,
 
-  try {
-    const buf = await file.arrayBuffer();
-    if (runId !== extractRunId) return;
-    const cells = await extractAllPagesFromPdfArrayBuffer(buf);
-    if (runId !== extractRunId) return;
+    processingText: "",
+    exportStatus: "",
+    warning: "",
+    tableMeta: "",
 
-    const rows = groupIntoRows(cells, DEFAULT_Y_TOLERANCE);
+    header: [] as string[],
+    rows: [] as string[][],
 
-    const headerIdx = findHeaderRowIndex(rows);
-    if (headerIdx === -1) {
-      lastTable = null;
-      ui.warning.textContent =
-        "Could not find the table header row. If this PDF uses a different header text, this tool may need a header rule update.";
-      setProcessingText(ui, "");
-      return;
-    }
+    lastTable: null as string[][] | null,
+    lastBaseName: "table",
 
-    const stops = inferColumnStopsFromDataRows(
-      rows.slice(headerIdx + 1),
-      rows[headerIdx]!,
-    );
-    const table = collectMainTable(rows, stops, headerIdx);
+    get hasPdf() {
+      return Boolean(this.pdfName);
+    },
 
-    lastTable = table;
-    setExportEnabled(ui, table.length > 1);
+    get exportEnabled() {
+      return Boolean(this.lastTable && this.lastTable.length > 1);
+    },
 
-    renderPreview(ui, table, DEFAULT_PREVIEW_ROWS);
+    init() {
+      // nothing
+    },
 
-    if (stops.length === 0) {
-      ui.warning.textContent =
-        "Column boundaries were not confidently inferred; exported file may be single-column.";
-    }
-    setProcessingText(
-      ui,
-      table.length > 1 ? "Ready to download." : "No data rows found.",
-    );
-  } catch (err) {
-    lastTable = null;
-    setExportEnabled(ui, false);
-    const message = err instanceof Error ? err.message : "Unknown error";
-    ui.warning.textContent = `Extraction failed: ${message}`;
-    setProcessingText(ui, "");
-  } finally {
-    if (runId === extractRunId) {
-      setBusy(ui, false);
-    }
-  }
-}
+    async onPdfChange(event: Event) {
+      const file = (event.target as HTMLInputElement).files?.[0];
 
-function downloadCsv(ui: ReturnType<typeof initUI>) {
-  if (!lastTable) return;
-  const csv = toCsv(lastTable);
-  const bom = "\uFEFF";
-  const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8" });
-  downloadBlob(blob, `${lastBaseName}.csv`);
-  ui.exportStatus.textContent = "Downloaded CSV (UTF-8 with BOM for Excel).";
-}
+      this.exportStatus = "";
+      this.warning = "";
+      this.processingText = "";
+      this.tableMeta = "";
+      this.header = [];
+      this.rows = [];
+      this.lastTable = null;
 
-function downloadXlsx(ui: ReturnType<typeof initUI>) {
-  if (!lastTable) return;
+      if (!file) {
+        this.pdfName = "";
+        this.pdfSizeKb = 0;
+        return;
+      }
 
-  const ws = XLSX.utils.aoa_to_sheet(lastTable);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Table");
+      this.pdfName = file.name;
+      this.pdfSizeKb = Math.round(file.size / 1024);
+      this.lastBaseName = basenameNoExt(file.name) || "table";
 
-  const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  const blob = new Blob([out], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+      extractRunId += 1;
+      const runId = extractRunId;
+      this.busy = true;
+      this.processingText = "Extracting…";
 
-  downloadBlob(blob, `${lastBaseName}.xlsx`);
-  ui.exportStatus.textContent = "Downloaded Excel.";
-}
+      try {
+        const buf = await file.arrayBuffer();
+        if (runId !== extractRunId) return;
+        const cells = await extractAllPagesFromPdfArrayBuffer(buf);
+        if (runId !== extractRunId) return;
 
-const ui = initUI();
-setExportEnabled(ui, false);
-setBusy(ui, false);
+        const groupedRows = groupIntoRows(cells, DEFAULT_Y_TOLERANCE);
 
-ui.pdfInput.addEventListener("change", () => {
-  const file = ui.pdfInput.files?.[0];
-  ui.pdfStatus.textContent = file
-    ? `${file.name} (${Math.round(file.size / 1024)} KB)`
-    : "No PDF selected";
-  setExportEnabled(ui, false);
-  lastTable = null;
+        const headerIdx = findHeaderRowIndex(groupedRows);
+        if (headerIdx === -1) {
+          this.lastTable = null;
+          this.warning =
+            "Could not find the table header row. If this PDF uses a different header text, this tool may need a header rule update.";
+          this.processingText = "";
+          return;
+        }
 
-  if (!file) {
-    setProcessingText(ui, "");
-    return;
-  }
+        const headerRow = groupedRows[headerIdx];
+        if (!headerRow) {
+          this.lastTable = null;
+          this.warning = "Header row index was out of bounds.";
+          this.processingText = "";
+          return;
+        }
 
-  extractRunId++;
-  const runId = extractRunId;
-  void extract(ui, runId);
+        const stops = inferColumnStopsFromDataRows(
+          groupedRows.slice(headerIdx + 1),
+          headerRow,
+        );
+        const table = collectMainTable(groupedRows, stops, headerIdx);
+        this.lastTable = table;
+
+        const safeHeader = (table[0] ?? []).map(
+          (cell, idx) => (cell || "").trim() || `Column ${idx + 1}`,
+        );
+        const body = table.slice(1, Math.max(1, DEFAULT_PREVIEW_ROWS));
+        this.header = safeHeader;
+        this.rows = body;
+
+        this.tableMeta = `${table.length - 1} data rows • ${safeHeader.length} columns`;
+
+        if (stops.length === 0) {
+          this.warning =
+            "Column boundaries were not confidently inferred; exported file may be single-column.";
+        }
+
+        this.processingText =
+          table.length > 1 ? "Ready to download." : "No data rows found.";
+      } catch (err) {
+        this.lastTable = null;
+        const message = err instanceof Error ? err.message : "Unknown error";
+        this.warning = `Extraction failed: ${message}`;
+        this.processingText = "";
+      } finally {
+        if (runId === extractRunId) {
+          this.busy = false;
+        }
+      }
+    },
+
+    downloadCsv() {
+      if (!this.lastTable) return;
+      const csv = toCsv(this.lastTable);
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8" });
+      downloadBlob(blob, `${this.lastBaseName}.csv`);
+      this.exportStatus = "Downloaded CSV (UTF-8 with BOM for Excel).";
+    },
+
+    downloadXlsx() {
+      if (!this.lastTable) return;
+
+      const ws = XLSX.utils.aoa_to_sheet(this.lastTable);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Table");
+
+      const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([out], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      downloadBlob(blob, `${this.lastBaseName}.xlsx`);
+      this.exportStatus = "Downloaded Excel.";
+    },
+  };
 });
-ui.downloadCsv.addEventListener("click", () => downloadCsv(ui));
-ui.downloadXlsx.addEventListener("click", () => downloadXlsx(ui));
+
+startAlpine();
