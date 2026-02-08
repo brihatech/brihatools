@@ -15,6 +15,7 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
         framer: resolve(__dirname, "framer.html"),
         poster: resolve(__dirname, "poster.html"),
+        nepaliPdf: resolve(__dirname, "nepali-pdf.html"),
       },
     },
   },
