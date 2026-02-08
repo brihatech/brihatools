@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Poster Builder</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body class="min-h-screen bg-[radial-gradient(circle_at_15%_20%,rgba(45,91,255,0.08),transparent_55%),radial-gradient(circle_at_90%_10%,rgba(255,177,42,0.12),transparent_50%),#f4f1ea] text-slate-900">
+    <nav class="flex h-14 items-center border-b border-slate-800 bg-slate-900 px-6 text-white">
+      <div class="flex items-center gap-3 text-lg font-semibold tracking-tight">
+        <img src="/brihatech.svg" alt="Brihatech" class="h-8 w-auto" />
+        <span>brihatools</span>
+      </div>
+    </nav>
+
+    <main class="mx-auto max-w-6xl px-6 py-12">
+      <section class="mb-10 flex flex-wrap items-end justify-between gap-6">
+        <div>
+          <h1 class="text-3xl font-semibold text-slate-900 md:text-4xl">Poster Builder</h1>
+          <p class="mt-2 max-w-xl text-slate-600">
+            Pick a poster, upload a portrait, and place it exactly where you want it.
+          </p>
+        </div>
+      </section>
+
+      <section class="grid gap-8 lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)]">
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
+          <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Poster Styles</h2>
+          <div class="mt-4 grid grid-cols-3 gap-3" id="frameGrid">
+            <button
+              class="frame-button rounded-xl border border-blue-500 bg-slate-50 transition hover:-translate-y-0.5 hover:shadow-md"
+              type="button"
+              data-frame="/frames/frame1.jpg"
+            >
+              <img src="/frames/frame1.jpg" alt="Frame 1" class="h-24 w-full object-cover" />
+            </button>
+            <button
+              class="frame-button rounded-xl border border-transparent bg-slate-50 transition hover:-translate-y-0.5 hover:shadow-md"
+              type="button"
+              data-frame="/frames/frame2.jpeg"
+            >
+              <img src="/frames/frame2.jpeg" alt="Frame 2" class="h-24 w-full object-cover" />
+            </button>
+            <button
+              class="frame-button rounded-xl border border-transparent bg-slate-50 transition hover:-translate-y-0.5 hover:shadow-md"
+              type="button"
+              data-frame="/frames/frame3.jpg"
+            >
+              <img src="/frames/frame3.jpg" alt="Frame 3" class="h-24 w-full object-cover" />
+            </button>
+          </div>
+
+          <div class="mt-6">
+            <span class="text-sm text-slate-500">Upload Portrait Photo</span>
+            <div class="mt-3 group relative">
+              <input id="photoUpload" class="hidden" type="file" accept="image/*" />
+              <button
+                id="uploadCard"
+                class="flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-slate-500 transition hover:border-slate-400 hover:bg-slate-100"
+                type="button"
+              >
+                <img
+                  id="photoPreview"
+                  class="hidden h-32 w-full rounded-xl object-cover"
+                  alt="Photo preview"
+                />
+                <div id="uploadPlaceholder" class="flex flex-col items-center gap-2">
+                  <span class="flex h-12 w-12 items-center justify-center rounded-full border border-slate-300 bg-white">
+                    <svg class="h-6 w-6 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 5v14" />
+                      <path d="M5 12h14" />
+                    </svg>
+                  </span>
+                  <span class="text-xs font-semibold uppercase tracking-[0.2em]">Add portrait</span>
+                  <span class="text-xs text-slate-400">PNG or JPG</span>
+                </div>
+              </button>
+              <button
+                id="removePhotoButton"
+                class="absolute right-3 top-3 hidden rounded-full bg-white/90 p-2 text-slate-600 shadow-sm opacity-0 transition group-hover:opacity-100"
+                type="button"
+                aria-label="Remove photo"
+              >
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 6 6 18" />
+                  <path d="M6 6 18 18" />
+                </svg>
+              </button>
+            </div>
+            <span class="mt-3 block text-xs text-slate-500">
+              Tip: drag the photo on the canvas to position it.
+            </span>
+          </div>
+
+          <div class="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              id="removeBgButton"
+              class="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+              disabled
+            >
+              Remove Background
+            </button>
+            <span id="removeBgStatus" class="hidden text-xs text-slate-500">Removing background...</span>
+          </div>
+
+          <div class="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              id="exportButton"
+              class="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+            >
+              Export Poster
+            </button>
+            <span id="exportStatus" class="hidden text-xs text-slate-500">Exporting...</span>
+          </div>
+
+          <div class="mt-6 flex flex-col gap-3">
+            <label class="text-sm text-slate-500" for="scaleRange">Scale Photo</label>
+            <input
+              id="scaleRange"
+              class="w-full accent-blue-600"
+              type="range"
+              min="0.4"
+              max="2.5"
+              value="1"
+              step="0.05"
+            />
+          </div>
+
+          <div class="mt-6 flex flex-col gap-3">
+            <label class="text-sm text-slate-500" for="fullName">Full Name</label>
+            <input
+              id="fullName"
+              class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              type="text"
+              placeholder="Full Name"
+            />
+          </div>
+
+          <div class="mt-6 flex flex-col gap-3">
+            <label class="text-sm text-slate-500" for="designation">Designation</label>
+            <input
+              id="designation"
+              class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              type="text"
+              placeholder="Designation"
+            />
+          </div>
+        </div>
+
+        <div class="flex justify-center">
+          <div
+            class="relative w-full max-w-2xl overflow-hidden rounded-sm border border-slate-200 bg-transparent shadow-xl shadow-slate-200/60 aspect-3/4"
+            id="stage"
+          >
+            <img
+              class="absolute inset-0 h-full w-full object-contain"
+              id="frameImage"
+              src="/frames/frame1.jpg"
+              alt="Poster frame"
+            />
+            <img
+              class="absolute left-1/2 top-1/2 hidden w-[35%] select-none touch-none cursor-grab"
+              id="photoImage"
+              alt="Uploaded portrait"
+              draggable="false"
+            />
+            <div
+              id="frameOverlay"
+              class="pointer-events-none absolute"
+              style="left: var(--frame-x, 0px); top: var(--frame-y, 0px); width: var(--frame-w, 100%); height: var(--frame-h, 100%);"
+            >
+              <div class="absolute bottom-[8%] left-[8%] flex flex-col gap-1 uppercase tracking-[0.2em] text-slate-900">
+                <div
+                  class="w-fit rounded-full bg-white/80 px-3 py-1 text-sm font-semibold sm:text-base"
+                  id="nameText"
+                >
+                  Full Name
+                </div>
+                <div class="w-fit rounded-full bg-white/70 px-3 py-1 text-xs sm:text-sm" id="roleText">
+                  Designation
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/poster/main.ts"></script>
+  </body>
+</html>

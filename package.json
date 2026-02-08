@@ -27,6 +27,10 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "jszip": "^3.10.1",
-    "tailwindcss": "^4.1.18"
+    "onnxruntime-web": "^1.24.1",
+    "pdfjs-dist": "^5.4.624",
+    "preeti": "^1.0.3",
+    "tailwindcss": "^4.1.18",
+    "xlsx": "^0.18.5"
   }
 }
