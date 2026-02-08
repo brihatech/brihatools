@@ -50,12 +50,6 @@ export const computeContainedRect = (
   return { x, y, width: drawWidth, height: drawHeight };
 };
 
-export const getGapPx = (element: HTMLElement | null) => {
-  if (!element) return 0;
-  const style = getComputedStyle(element);
-  return parsePx(style.rowGap || style.gap || "0");
-};
-
 export const getPillStyle = (element: HTMLElement): PillStyle => {
   const style = getComputedStyle(element);
   return {
@@ -117,8 +111,6 @@ const downloadCanvasPng = async (canvas: HTMLCanvasElement, name: string) => {
 };
 
 const PHOTO_BASE_WIDTH_FRACTION = 0.35;
-const TEXT_INSET_FRACTION = 0.08;
-
 export type PosterConfig = {
   stage: HTMLDivElement;
   frameImage: HTMLImageElement;
@@ -127,6 +119,14 @@ export type PosterConfig = {
   roleText: HTMLElement;
   fullName: string;
   designation: string;
+  nameBaseXPct: number;
+  nameBaseYPct: number;
+  roleBaseXPct: number;
+  roleBaseYPct: number;
+  nameScale: number;
+  roleScale: number;
+  hasOverlay: boolean;
+  overlaySrc: string;
   nameOffsetX: number;
   nameOffsetY: number;
   roleOffsetX: number;
@@ -147,6 +147,14 @@ export async function generatePoster(config: PosterConfig) {
     roleText,
     fullName,
     designation,
+    nameBaseXPct,
+    nameBaseYPct,
+    roleBaseXPct,
+    roleBaseYPct,
+    nameScale,
+    roleScale,
+    hasOverlay,
+    overlaySrc,
     nameOffsetX,
     nameOffsetY,
     roleOffsetX,
@@ -230,20 +238,17 @@ export async function generatePoster(config: PosterConfig) {
 
   const frameW = frameImage.naturalWidth;
   const frameH = frameImage.naturalHeight;
-  const leftInset = TEXT_INSET_FRACTION * frameW;
-  const bottomInset = TEXT_INSET_FRACTION * frameH;
-  const gapFrame = getGapPx(nameText.parentElement) * sy;
 
-  const safeName = (fullName || "Full Name").trim() || "Full Name";
-  const safeRole = (designation || "Designation").trim() || "Designation";
+  const safeName = fullName.trim();
+  const safeRole = designation.trim();
 
-  const makePillSpec = (text: string, pill: PillStyle) => {
+  const makePillSpec = (text: string, pill: PillStyle, scale: number) => {
     const upperText = text.toUpperCase();
-    const fontSize = pill.fontSizePx * sy;
-    const padL = pill.paddingLeft * sx;
-    const padR = pill.paddingRight * sx;
-    const padT = pill.paddingTop * sy;
-    const padB = pill.paddingBottom * sy;
+    const fontSize = pill.fontSizePx * sy * scale;
+    const padL = pill.paddingLeft * sx * scale;
+    const padR = pill.paddingRight * sx * scale;
+    const padT = pill.paddingTop * sy * scale;
+    const padB = pill.paddingBottom * sy * scale;
 
     ctx.font = `${pill.fontWeight} ${fontSize}px ${pill.fontFamily}`;
     ctx.textBaseline = "top";
@@ -282,19 +287,26 @@ export async function generatePoster(config: PosterConfig) {
     ctx.restore();
   };
 
-  const nameSpec = makePillSpec(safeName, getPillStyle(nameText));
-  const roleSpec = makePillSpec(safeRole, getPillStyle(roleText));
+  if (hasOverlay && overlaySrc) {
+    const overlayImage = new Image();
+    overlayImage.src = overlaySrc;
+    await overlayImage.decode();
+    ctx.drawImage(overlayImage, 0, 0, frameW, frameH);
+  }
 
-  const roleTop = frameH - bottomInset - roleSpec.height;
-  const nameTop = roleTop - gapFrame - nameSpec.height;
+  if (safeName) {
+    const nameSpec = makePillSpec(safeName, getPillStyle(nameText), nameScale);
+    const nameX = (nameBaseXPct / 100) * frameW + nameOffsetX * sx;
+    const nameY = (nameBaseYPct / 100) * frameH + nameOffsetY * sy;
+    drawPill(nameSpec, nameX, nameY);
+  }
 
-  const nameX = leftInset + nameOffsetX * sx;
-  const nameY = nameTop + nameOffsetY * sy;
-  const roleX = leftInset + roleOffsetX * sx;
-  const roleY = roleTop + roleOffsetY * sy;
-
-  drawPill(nameSpec, nameX, nameY);
-  drawPill(roleSpec, roleX, roleY);
+  if (safeRole) {
+    const roleSpec = makePillSpec(safeRole, getPillStyle(roleText), roleScale);
+    const roleX = (roleBaseXPct / 100) * frameW + roleOffsetX * sx;
+    const roleY = (roleBaseYPct / 100) * frameH + roleOffsetY * sy;
+    drawPill(roleSpec, roleX, roleY);
+  }
 
   await downloadCanvasPng(canvas, "poster.png");
 }

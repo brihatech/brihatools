@@ -22,23 +22,18 @@
             id="frameGrid"
             class="mt-4 flex gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible"
           >
-            <template x-for="frame in [
-              '/frames/frame1.png',
-              '/frames/frame2.png',
-              '/frames/frame3.png',
-              '/frames/frame4.png',
-            ]" :key="frame">
+            <template x-for="frame in frames" :key="frame.id">
               <button
                 type="button"
                 class="frame-button shrink-0 rounded-sm overflow-hidden border bg-slate-50 transition hover:-translate-y-0.5 hover:shadow-md"
-                :data-frame="frame"
-                @click="setFrame(frame)"
-                :class="activeFrame === frame
+                :data-frame="frame.src"
+                @click="setFrame(frame.src)"
+                :class="activeFrame === frame.src
                   ? 'border-indigo-600 ring-2 ring-indigo-600/30'
                   : 'border-transparent'"
               >
                 <img
-                  :src="frame"
+                  :src="frame.thumbSrc || frame.src"
                   class="h-24 w-full object-cover"
                   alt="Frame preview"
                 />
@@ -75,15 +70,21 @@
               @pointercancel="onPhotoPointerUp($event)"
               x-ref="photoImage"
             />
+            <img
+              class="pointer-events-none absolute inset-0 h-full w-full object-contain"
+              x-show="activeFrameConfig.hasOverlay"
+              :src="activeFrameConfig.overlaySrc"
+              alt="Frame overlay"
+            />
             <div
               id="frameOverlay"
               class="pointer-events-none absolute"
               style="left: var(--frame-x, 0px); top: var(--frame-y, 0px); width: var(--frame-w, 100%); height: var(--frame-h, 100%);"
               x-ref="frameOverlay"
             >
-              <div class="absolute bottom-[8%] left-[8%] flex flex-col gap-1 uppercase text-slate-900">
+              <div class="absolute inset-0 uppercase text-slate-900">
                 <div
-                  class="pointer-events-auto w-fit select-none touch-none rounded-full bg-transparent px-3 py-1 text-sm font-semibold cursor-grab sm:text-base"
+                  class="pointer-events-auto absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab"
                   id="nameText"
                   x-ref="nameText"
                   x-show="fullName.trim().length"
@@ -97,7 +98,9 @@
                 >
                   Full Name
                 </div>
-                <div class="pointer-events-auto w-fit select-none touch-none rounded-full bg-transparent px-3 py-1 text-xs cursor-grab sm:text-sm" id="roleText"
+                <div
+                  class="pointer-events-auto absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab"
+                  id="roleText"
                   x-ref="roleText"
                   x-show="designation.trim().length"
                   x-text="designation.toUpperCase()"

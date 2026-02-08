@@ -2,6 +2,7 @@ import { getAlpine, startAlpine } from "@/alpine";
 
 import { removeBackground } from "./background";
 import { computeContainedRect, generatePoster } from "./canvas";
+import { DEFAULT_FRAME_SRC, FRAMES } from "./frames";
 import { extractLastToken, getSuggestions, splitByCursor } from "./suggestions";
 
 const TRANSLITERATE_DEBOUNCE_MS = 180;
@@ -25,7 +26,8 @@ Alpine.data("posterBuilder", () => {
   let suppressNextRoleSuggestions = false;
 
   return {
-    activeFrame: "/frames/frame1.png",
+    frames: FRAMES,
+    activeFrame: DEFAULT_FRAME_SRC,
 
     // Photo placement
     hasPhoto: false,
@@ -61,12 +63,41 @@ Alpine.data("posterBuilder", () => {
       return `transform: translate(-50%, -50%) translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale});`;
     },
 
+    get activeFrameConfig() {
+      return (
+        this.frames.find((frame) => frame.src === this.activeFrame) ??
+        this.frames[0]
+      );
+    },
+
     get nameTransformStyle() {
-      return `transform: translate(${this.nameOffsetX}px, ${this.nameOffsetY}px);`;
+      const { nameText } = this.activeFrameConfig;
+      return [
+        `left: ${nameText.xPct}%`,
+        `top: ${nameText.yPct}%`,
+        `color: ${nameText.color}`,
+        `font-family: ${nameText.fontFamily}`,
+        `font-size: ${nameText.fontSizePx}px`,
+        `font-weight: ${nameText.fontWeight}`,
+        `background-color: ${nameText.backgroundColor}`,
+        "transform-origin: left top",
+        `transform: translate(${this.nameOffsetX}px, ${this.nameOffsetY}px) scale(${nameText.scale})`,
+      ].join("; ");
     },
 
     get roleTransformStyle() {
-      return `transform: translate(${this.roleOffsetX}px, ${this.roleOffsetY}px);`;
+      const { roleText } = this.activeFrameConfig;
+      return [
+        `left: ${roleText.xPct}%`,
+        `top: ${roleText.yPct}%`,
+        `color: ${roleText.color}`,
+        `font-family: ${roleText.fontFamily}`,
+        `font-size: ${roleText.fontSizePx}px`,
+        `font-weight: ${roleText.fontWeight}`,
+        `background-color: ${roleText.backgroundColor}`,
+        "transform-origin: left top",
+        `transform: translate(${this.roleOffsetX}px, ${this.roleOffsetY}px) scale(${roleText.scale})`,
+      ].join("; ");
     },
 
     clampDragDelta(target: HTMLElement, dx: number, dy: number) {
@@ -378,6 +409,14 @@ Alpine.data("posterBuilder", () => {
           roleText,
           fullName: this.fullName,
           designation: this.designation,
+          nameBaseXPct: this.activeFrameConfig.nameText.xPct,
+          nameBaseYPct: this.activeFrameConfig.nameText.yPct,
+          roleBaseXPct: this.activeFrameConfig.roleText.xPct,
+          roleBaseYPct: this.activeFrameConfig.roleText.yPct,
+          nameScale: this.activeFrameConfig.nameText.scale,
+          roleScale: this.activeFrameConfig.roleText.scale,
+          hasOverlay: this.activeFrameConfig.hasOverlay,
+          overlaySrc: this.activeFrameConfig.overlaySrc ?? "",
           nameOffsetX: this.nameOffsetX,
           nameOffsetY: this.nameOffsetY,
           roleOffsetX: this.roleOffsetX,
