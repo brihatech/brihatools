@@ -6,6 +6,19 @@ export function normalizeText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
+// Like normalizeText, but preserves explicit newlines so multi-line table cells
+// remain readable in CSV/Excel.
+export function normalizeCellValue(text: string): string {
+  const raw = String(text ?? "");
+  const lines = raw
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/[ \t\f\v]+/g, " ").trim())
+    .filter(Boolean);
+  return lines.join("\n");
+}
+
 export function maybePreetiToUnicode(text: string): string {
   if (DEVANAGARI_RE.test(text)) return text;
 

@@ -4,9 +4,11 @@ export type ExtractedCell = {
   y: number;
   width: number;
   height: number;
+  page: number;
 };
 
 export type ExtractedRow = {
+  page: number;
   y: number;
   cells: ExtractedCell[];
 };
