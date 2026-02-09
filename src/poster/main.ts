@@ -16,6 +16,7 @@ const Alpine = getAlpine();
 
 Alpine.data("posterBuilder", () => {
   let currentPhotoObjectUrl: string | null = null;
+  let removeBgRunId = 0;
 
   // Drag state (not reactive)
   let dragTarget: "photo" | "name" | "role" | null = null;
@@ -248,6 +249,8 @@ Alpine.data("posterBuilder", () => {
     },
 
     setPhotoState(source: string) {
+      removeBgRunId += 1;
+
       if (currentPhotoObjectUrl && source !== currentPhotoObjectUrl) {
         URL.revokeObjectURL(currentPhotoObjectUrl);
         currentPhotoObjectUrl = null;
@@ -269,6 +272,8 @@ Alpine.data("posterBuilder", () => {
     },
 
     clearPhoto() {
+      removeBgRunId += 1;
+
       if (currentPhotoObjectUrl) {
         URL.revokeObjectURL(currentPhotoObjectUrl);
         currentPhotoObjectUrl = null;
@@ -296,11 +301,11 @@ Alpine.data("posterBuilder", () => {
       startX = event.clientX;
       startY = event.clientY;
 
-      const photoImage = this.ref<HTMLImageElement>("photoImage");
-      if (photoImage) {
-        photoImage.setPointerCapture(event.pointerId);
-        photoImage.classList.add("cursor-grabbing");
-        photoImage.classList.remove("cursor-grab");
+      const photoContainer = this.ref<HTMLDivElement>("photoContainer");
+      if (photoContainer) {
+        photoContainer.setPointerCapture(event.pointerId);
+        photoContainer.classList.add("cursor-grabbing");
+        photoContainer.classList.remove("cursor-grab");
       }
     },
 
@@ -318,12 +323,12 @@ Alpine.data("posterBuilder", () => {
     onPhotoPointerUp(event: PointerEvent) {
       if (dragTarget !== "photo") return;
       dragTarget = null;
-      const photoImage = this.ref<HTMLImageElement>("photoImage");
-      if (photoImage) {
-        photoImage.classList.remove("cursor-grabbing");
-        photoImage.classList.add("cursor-grab");
-        if (photoImage.hasPointerCapture(event.pointerId)) {
-          photoImage.releasePointerCapture(event.pointerId);
+      const photoContainer = this.ref<HTMLDivElement>("photoContainer");
+      if (photoContainer) {
+        photoContainer.classList.remove("cursor-grabbing");
+        photoContainer.classList.add("cursor-grab");
+        if (photoContainer.hasPointerCapture(event.pointerId)) {
+          photoContainer.releasePointerCapture(event.pointerId);
         }
       }
     },
@@ -417,11 +422,33 @@ Alpine.data("posterBuilder", () => {
         return;
       }
 
+      removeBgRunId += 1;
+      const runId = removeBgRunId;
+      let timeoutHandle: number | undefined;
+
       this.removeBgBusy = true;
       this.removeBgMessage = "";
 
+      await new Promise<void>((resolve) => {
+        window.setTimeout(() => resolve(), 0);
+      });
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve());
+      });
+
       try {
-        const processedSource = await removeBackground(this.photoSrc);
+        const processedSource = await Promise.race([
+          removeBackground(this.photoSrc),
+          new Promise<string>((_, reject) => {
+            timeoutHandle = window.setTimeout(() => {
+              reject(new Error("Background removal timed out."));
+            }, 45000);
+          }),
+        ]);
+
+        if (runId !== removeBgRunId) {
+          return;
+        }
 
         if (currentPhotoObjectUrl) {
           URL.revokeObjectURL(currentPhotoObjectUrl);
@@ -430,12 +457,19 @@ Alpine.data("posterBuilder", () => {
 
         this.photoSrc = processedSource;
         this.removeBgUsed = true;
-        this.removeBgBusy = false;
         this.removeBgMessage = "Background removed";
       } catch (error) {
         console.error("Error during background removal:", error);
-        this.removeBgBusy = false;
-        this.removeBgMessage = "Background removal failed.";
+        if (runId === removeBgRunId) {
+          this.removeBgMessage = "Background removal failed.";
+        }
+      } finally {
+        if (timeoutHandle) {
+          window.clearTimeout(timeoutHandle);
+        }
+        if (runId === removeBgRunId) {
+          this.removeBgBusy = false;
+        }
       }
     },
 
