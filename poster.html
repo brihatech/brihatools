@@ -83,13 +83,13 @@
               style="left: var(--frame-x, 0px); top: var(--frame-y, 0px); width: var(--frame-w, 100%); height: var(--frame-h, 100%);"
               x-ref="frameOverlay"
             >
-              <div class="absolute inset-0 uppercase text-slate-900">
+              <div class="absolute inset-0 text-slate-900">
                 <div
                   class="pointer-events-auto absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab"
                   id="nameText"
                   x-ref="nameText"
                   x-show="fullName.trim().length"
-                  x-text="fullName.toUpperCase()"
+                  x-text="fullName"
                   :style="nameTransformStyle"
                   @pointerdown="onNamePointerDown($event)"
                   @pointermove="onNamePointerMove($event)"
@@ -104,7 +104,7 @@
                   id="roleText"
                   x-ref="roleText"
                   x-show="designation.trim().length"
-                  x-text="designation.toUpperCase()"
+                  x-text="designation"
                   :style="roleTransformStyle"
                   @pointerdown="onRolePointerDown($event)"
                   @pointermove="onRolePointerMove($event)"
@@ -119,7 +119,7 @@
           </div>
         </div>
 
-        <div class="order-3 rounded-none border border-slate-200 p-6 shadow-sm shadow-slate-200/60 lg:order-1">
+        <div class="order-3 rounded-none border bg-white border-slate-200 p-6 shadow-sm shadow-slate-200/60 lg:order-1">
           <div class="flex flex-col gap-6">
             <div class="order-1">
               <span class="hidden lg:block text-sm font-medium text-heading">Upload Your Photo</span>
@@ -277,7 +277,7 @@
                   @click="removeBackground()"
                   :disabled="!hasPhoto || removeBgBusy || removeBgUsed"
                   class="flex flex-1 items-center justify-center gap-2
-                        rounded text-xs h-12 w-full
+                        rounded text-xs lg:text-sm h-12 w-full
                         bg-indigo-600 border border-indigo-600
                         active:scale-95 transition-transform
                         disabled:cursor-not-allowed disabled:opacity-50

@@ -101,7 +101,7 @@ Alpine.data("posterBuilder", () => {
         `top: ${nameText.yPct}%`,
         `color: ${nameText.color}`,
         `font-family: ${nameText.fontFamily}`,
-        `font-size: ${nameText.fontSizePx}px`,
+        `font-size: calc(${nameText.fontSizePx} * 1em)`,
         `font-weight: ${nameText.fontWeight}`,
         `background-color: ${nameText.backgroundColor}`,
         "transform-origin: left top",
@@ -116,7 +116,7 @@ Alpine.data("posterBuilder", () => {
         `top: ${roleText.yPct}%`,
         `color: ${roleText.color}`,
         `font-family: ${roleText.fontFamily}`,
-        `font-size: ${roleText.fontSizePx}px`,
+        `font-size: calc(${roleText.fontSizePx} * 1em)`,
         `font-weight: ${roleText.fontWeight}`,
         `background-color: ${roleText.backgroundColor}`,
         "transform-origin: left top",
@@ -229,6 +229,11 @@ Alpine.data("posterBuilder", () => {
       stage.style.setProperty("--frame-y", `${rect.y}px`);
       stage.style.setProperty("--frame-w", `${rect.width}px`);
       stage.style.setProperty("--frame-h", `${rect.height}px`);
+      stage.style.setProperty(
+        "--frame-scale",
+        `${rect.width / frameImage.naturalWidth}`,
+      );
+      stage.style.setProperty("--frame-font-size", `${rect.width / 1080}px`);
     },
 
     onPhotoFileChange(event: Event) {
