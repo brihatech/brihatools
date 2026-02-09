@@ -59,10 +59,10 @@
             <img
               class="absolute left-1/2 top-1/2 w-[35%] select-none touch-none cursor-grab"
               id="photoImage"
-              alt="Uploaded portrait"
+              :alt="hasPhoto && photoSrc ? 'Uploaded portrait' : ''"
               draggable="false"
-              x-show="hasPhoto"
-              :src="photoSrc"
+              x-show="hasPhoto && photoSrc"
+              :src="photoSrc || ''"
               :style="photoTransformStyle"
               @pointerdown="onPhotoPointerDown($event)"
               @pointermove="onPhotoPointerMove($event)"
