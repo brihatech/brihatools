@@ -1,11 +1,12 @@
 import type { ExtractedCell } from "./types";
-import { maybePreetiToUnicode, normalizeText } from "./text";
+import { maybePreetiToUnicode, normalizeCellValue } from "./text";
 
 type PdfJsTextItem = {
   str?: string;
   transform: number[];
   width: number;
   height?: number;
+  hasEOL?: boolean;
 };
 
 function getXY(item: PdfJsTextItem): {
@@ -62,12 +63,14 @@ export async function extractAllPagesFromPdfArrayBuffer(
       if (typeof it === "string") continue;
       const item = it as PdfJsTextItem;
 
-      const raw = normalizeText(item.str ?? "");
+      // Preserve explicit newlines (hasEOL) so multi-line table cells are readable.
+      const withEol = `${item.str ?? ""}${item.hasEOL ? "\n" : ""}`;
+      const raw = normalizeCellValue(withEol);
       const t = maybePreetiToUnicode(raw);
       if (!t) continue;
 
       const { x, y, w, h } = getXY(item);
-      all.push({ text: t, x, y, width: w, height: h });
+      all.push({ text: t, x, y, width: w, height: h, page: pageNum });
     }
   }
 

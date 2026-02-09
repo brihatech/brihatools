@@ -6,14 +6,23 @@ import { basenameNoExt, downloadBlob } from "./download";
 import { extractAllPagesFromPdfArrayBuffer } from "./pdf";
 import {
   collectMainTable,
+  explodeMultiRecordRows,
   findHeaderRowIndex,
   groupIntoRows,
   inferColumnStopsFromDataRows,
+  sanitizeHeaderRow,
   toCsv,
 } from "./table";
 
 const DEFAULT_Y_TOLERANCE = 2.0;
 const DEFAULT_PREVIEW_ROWS = 40;
+
+const MEMBER_ID_GLOBAL_RE = /[0-9]{6,}[0-9/-]*\/[0-9]{1,2}(?:-[0-9]{1,2})?/g;
+
+function countMemberIdsInRowText(text: string): number {
+  const m = text.match(MEMBER_ID_GLOBAL_RE);
+  return m ? m.length : 0;
+}
 
 const Alpine = getAlpine();
 
@@ -81,9 +90,23 @@ Alpine.data("nepaliPdfExtractor", () => {
         const cells = await extractAllPagesFromPdfArrayBuffer(buf);
         if (runId !== extractRunId) return;
 
-        const groupedRows = groupIntoRows(cells, DEFAULT_Y_TOLERANCE);
+        let groupedRows = groupIntoRows(cells, DEFAULT_Y_TOLERANCE);
+        let normalizedRows = explodeMultiRecordRows(groupedRows);
 
-        const headerIdx = findHeaderRowIndex(groupedRows);
+        // Some PDFs (e.g. multi-record per printed line) have slight y-jitter
+        // across columns, and a looser yTolerance can accidentally merge rows.
+        // Detect that shape and retry with a tighter tolerance.
+        const mergedLike = groupedRows.filter((r) => {
+          if (r.cells.length < 25) return false;
+          const rowText = r.cells.map((c) => c.text).join(" ");
+          return countMemberIdsInRowText(rowText) >= 2;
+        });
+        if (mergedLike.length >= 3) {
+          groupedRows = groupIntoRows(cells, 0.8);
+          normalizedRows = explodeMultiRecordRows(groupedRows);
+        }
+
+        const headerIdx = findHeaderRowIndex(normalizedRows);
         if (headerIdx === -1) {
           this.lastTable = null;
           this.warning =
@@ -92,7 +115,7 @@ Alpine.data("nepaliPdfExtractor", () => {
           return;
         }
 
-        const headerRow = groupedRows[headerIdx];
+        const headerRow = normalizedRows[headerIdx];
         if (!headerRow) {
           this.lastTable = null;
           this.warning = "Header row index was out of bounds.";
@@ -100,11 +123,14 @@ Alpine.data("nepaliPdfExtractor", () => {
           return;
         }
 
+        const safeHeaderRow = sanitizeHeaderRow(headerRow);
+
+        const dataCandidates = normalizedRows.filter((_, i) => i !== headerIdx);
         const stops = inferColumnStopsFromDataRows(
-          groupedRows.slice(headerIdx + 1),
-          headerRow,
+          dataCandidates,
+          safeHeaderRow,
         );
-        const table = collectMainTable(groupedRows, stops, headerIdx);
+        const table = collectMainTable(normalizedRows, stops, headerIdx);
         this.lastTable = table;
 
         const safeHeader = (table[0] ?? []).map(
