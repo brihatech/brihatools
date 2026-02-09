@@ -6,7 +6,7 @@
     <title>Poster Builder</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
-  <body class="min-h-screen bg-[radial-gradient(circle_at_15%_20%,rgba(45,91,255,0.08),transparent_55%),radial-gradient(circle_at_90%_10%,rgba(255,177,42,0.12),transparent_50%),#f4f1ea] text-slate-900">
+  <body class="min-h-screen bg-[radial-gradient(circle_at_15%_20%,rgba(45,91,255,0.08),transparent_55%),radial-gradient(circle_at_90%_10%,rgba(255,177,42,0.12),transparent_50%),#f4f1ea] text-slate-900" x-data="posterBuilder">
     <nav class="flex h-14 items-center border-b border-slate-800 bg-slate-900 px-6 text-white">
       <div class="flex items-center gap-3 text-lg font-semibold tracking-tight">
         <img src="/brihatech.svg" alt="Brihatech" class="h-8 w-auto" />
@@ -14,176 +14,366 @@
       </div>
     </nav>
 
-    <main class="mx-auto max-w-6xl px-6 py-12">
-      <section class="mb-10 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <h1 class="text-3xl font-semibold text-slate-900 md:text-4xl">Poster Builder</h1>
-          <p class="mt-2 max-w-xl text-slate-600">
-            Pick a poster, upload a portrait, and place it exactly where you want it.
-          </p>
-        </div>
-      </section>
+    <main class="w-full p-6">
+      <section class="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)_minmax(220px,360px)] lg:items-start">
+        <div class="order-1 rounded-sm border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/60 lg:order-3">
+          <h2 class="block text-sm font-medium text-heading tracking-wide">Available Frames</h2>
 
-      <section class="grid gap-8 lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)]">
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
-          <h2 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Poster Styles</h2>
-          <div class="mt-4 grid grid-cols-3 gap-3" id="frameGrid">
-            <button
-              class="frame-button rounded-xl border border-blue-500 bg-slate-50 transition hover:-translate-y-0.5 hover:shadow-md"
-              type="button"
-              data-frame="/frames/frame1.jpg"
-            >
-              <img src="/frames/frame1.jpg" alt="Frame 1" class="h-24 w-full object-cover" />
-            </button>
-            <button
-              class="frame-button rounded-xl border border-transparent bg-slate-50 transition hover:-translate-y-0.5 hover:shadow-md"
-              type="button"
-              data-frame="/frames/frame2.jpeg"
-            >
-              <img src="/frames/frame2.jpeg" alt="Frame 2" class="h-24 w-full object-cover" />
-            </button>
-            <button
-              class="frame-button rounded-xl border border-transparent bg-slate-50 transition hover:-translate-y-0.5 hover:shadow-md"
-              type="button"
-              data-frame="/frames/frame3.jpg"
-            >
-              <img src="/frames/frame3.jpg" alt="Frame 3" class="h-24 w-full object-cover" />
-            </button>
-          </div>
-
-          <div class="mt-6">
-            <span class="text-sm text-slate-500">Upload Portrait Photo</span>
-            <div class="mt-3 group relative">
-              <input id="photoUpload" class="hidden" type="file" accept="image/*" />
+          <div
+            id="frameGrid"
+            class="mt-4 flex gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible"
+          >
+            <template x-for="frame in filteredFrames" :key="frame.id">
               <button
-                id="uploadCard"
-                class="flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-slate-500 transition hover:border-slate-400 hover:bg-slate-100"
                 type="button"
+                class="frame-button shrink-0 rounded-sm overflow-hidden border bg-slate-50 transition hover:-translate-y-0.5 hover:shadow-md"
+                :data-frame="frame.src"
+                @click="setFrame(frame.src)"
+                :class="activeFrame === frame.src
+                  ? 'border-indigo-600 ring-2 ring-indigo-600/30'
+                  : 'border-transparent'"
               >
                 <img
-                  id="photoPreview"
-                  class="hidden h-32 w-full rounded-xl object-cover"
-                  alt="Photo preview"
+                  :src="frame.thumbSrc || frame.src"
+                  class="h-24 w-full object-cover"
+                  alt="Frame preview"
                 />
-                <div id="uploadPlaceholder" class="flex flex-col items-center gap-2">
-                  <span class="flex h-12 w-12 items-center justify-center rounded-full border border-slate-300 bg-white">
-                    <svg class="h-6 w-6 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 5v14" />
-                      <path d="M5 12h14" />
-                    </svg>
-                  </span>
-                  <span class="text-xs font-semibold uppercase tracking-[0.2em]">Add portrait</span>
-                  <span class="text-xs text-slate-400">PNG or JPG</span>
-                </div>
               </button>
-              <button
-                id="removePhotoButton"
-                class="absolute right-3 top-3 hidden rounded-full bg-white/90 p-2 text-slate-600 shadow-sm opacity-0 transition group-hover:opacity-100"
-                type="button"
-                aria-label="Remove photo"
-              >
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 6 6 18" />
-                  <path d="M6 6 18 18" />
-                </svg>
-              </button>
-            </div>
-            <span class="mt-3 block text-xs text-slate-500">
-              Tip: drag the photo on the canvas to position it.
-            </span>
-          </div>
-
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <button
-              id="removeBgButton"
-              class="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              type="button"
-              disabled
-            >
-              Remove Background
-            </button>
-            <span id="removeBgStatus" class="hidden text-xs text-slate-500">Removing background...</span>
-          </div>
-
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <button
-              id="exportButton"
-              class="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              type="button"
-            >
-              Export Poster
-            </button>
-            <span id="exportStatus" class="hidden text-xs text-slate-500">Exporting...</span>
-          </div>
-
-          <div class="mt-6 flex flex-col gap-3">
-            <label class="text-sm text-slate-500" for="scaleRange">Scale Photo</label>
-            <input
-              id="scaleRange"
-              class="w-full accent-blue-600"
-              type="range"
-              min="0.4"
-              max="2.5"
-              value="1"
-              step="0.05"
-            />
-          </div>
-
-          <div class="mt-6 flex flex-col gap-3">
-            <label class="text-sm text-slate-500" for="fullName">Full Name</label>
-            <input
-              id="fullName"
-              class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-              type="text"
-              placeholder="Full Name"
-            />
-          </div>
-
-          <div class="mt-6 flex flex-col gap-3">
-            <label class="text-sm text-slate-500" for="designation">Designation</label>
-            <input
-              id="designation"
-              class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-              type="text"
-              placeholder="Designation"
-            />
+            </template>
           </div>
         </div>
 
-        <div class="flex justify-center">
+        <div class="order-2 flex justify-center lg:order-2">
           <div
-            class="relative w-full max-w-2xl overflow-hidden rounded-sm border border-slate-200 bg-transparent shadow-xl shadow-slate-200/60 aspect-3/4"
+            class="relative aspect-square w-full max-w-160 overflow-hidden rounded-none border border-slate-200 bg-transparent shadow-xl shadow-slate-200/60"
             id="stage"
+            x-ref="stage"
           >
             <img
               class="absolute inset-0 h-full w-full object-contain"
               id="frameImage"
-              src="/frames/frame1.jpg"
+              :src="activeFrame"
               alt="Poster frame"
+              x-ref="frameImage"
             />
             <img
-              class="absolute left-1/2 top-1/2 hidden w-[35%] select-none touch-none cursor-grab"
+              class="absolute left-1/2 top-1/2 w-[35%] select-none touch-none cursor-grab"
               id="photoImage"
-              alt="Uploaded portrait"
+              :alt="hasPhoto && photoSrc ? 'Uploaded portrait' : ''"
               draggable="false"
+              x-show="hasPhoto && photoSrc"
+              :src="photoSrc || ''"
+              :style="photoTransformStyle"
+              @pointerdown="onPhotoPointerDown($event)"
+              @pointermove="onPhotoPointerMove($event)"
+              @pointerup="onPhotoPointerUp($event)"
+              @pointerleave="onPhotoPointerUp($event)"
+              @pointercancel="onPhotoPointerUp($event)"
+              x-ref="photoImage"
+            />
+            <img
+              class="pointer-events-none absolute inset-0 h-full w-full object-contain"
+              x-show="activeFrameConfig.hasOverlay"
+              :src="activeFrameConfig.overlaySrc"
+              alt="Frame overlay"
             />
             <div
               id="frameOverlay"
               class="pointer-events-none absolute"
               style="left: var(--frame-x, 0px); top: var(--frame-y, 0px); width: var(--frame-w, 100%); height: var(--frame-h, 100%);"
+              x-ref="frameOverlay"
             >
-              <div class="absolute bottom-[8%] left-[8%] flex flex-col gap-1 uppercase tracking-[0.2em] text-slate-900">
+              <div class="absolute inset-0 uppercase text-slate-900">
                 <div
-                  class="w-fit rounded-full bg-white/80 px-3 py-1 text-sm font-semibold sm:text-base"
+                  class="pointer-events-auto absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab"
                   id="nameText"
+                  x-ref="nameText"
+                  x-show="fullName.trim().length"
+                  x-text="fullName.toUpperCase()"
+                  :style="nameTransformStyle"
+                  @pointerdown="onNamePointerDown($event)"
+                  @pointermove="onNamePointerMove($event)"
+                  @pointerup="onNamePointerUp($event)"
+                  @pointerleave="onNamePointerUp($event)"
+                  @pointercancel="onNamePointerUp($event)"
                 >
                   Full Name
                 </div>
-                <div class="w-fit rounded-full bg-white/70 px-3 py-1 text-xs sm:text-sm" id="roleText">
+                <div
+                  class="pointer-events-auto absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab"
+                  id="roleText"
+                  x-ref="roleText"
+                  x-show="designation.trim().length"
+                  x-text="designation.toUpperCase()"
+                  :style="roleTransformStyle"
+                  @pointerdown="onRolePointerDown($event)"
+                  @pointermove="onRolePointerMove($event)"
+                  @pointerup="onRolePointerUp($event)"
+                  @pointerleave="onRolePointerUp($event)"
+                  @pointercancel="onRolePointerUp($event)"
+                  >
                   Designation
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div class="order-3 rounded-sm border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/60 lg:order-1">
+          <div class="flex flex-col gap-6">
+            <div>
+              <span class="block text-sm font-medium text-heading">Upload Your Photo</span>
+
+              <div class="mt-3 group relative">
+                <input
+                  id="photoUpload"
+                  class="hidden"
+                  type="file"
+                  accept="image/*"
+                  x-ref="photoUpload"
+                  @change="onPhotoFileChange($event)"
+                />
+
+                <button
+                  id="uploadCard"
+                  type="button"
+                  @click="$refs.photoUpload.click()"
+                  class="relative flex h-40 w-full items-center justify-center overflow-hidden rounded-sm border border-dashed border-slate-300 bg-slate-50 p-4 text-slate-500 transition hover:border-slate-400 hover:bg-slate-100"
+                >
+                  <!-- Image preview -->
+                  <img
+                    id="photoPreview"
+                    x-show="hasPhoto"
+                    :src="photoSrc"
+                    alt="Photo preview"
+                    class="absolute inset-0 h-full w-full object-cover"
+                  />
+
+                  <!-- Placeholder -->
+                  <div
+                    id="uploadPlaceholder"
+                    x-show="!hasPhoto"
+                    class="relative z-10 flex flex-col items-center gap-2"
+                  >
+                    <span class="flex h-12 w-12 items-center justify-center rounded-full border border-slate-300 bg-white">
+                      <svg
+                        class="h-6 w-6 text-slate-500"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path d="M12 5v14" />
+                        <path d="M5 12h14" />
+                      </svg>
+                    </span>
+
+                    <span class="text-xs font-semibold uppercase tracking-widest">
+                      Upload Photo
+                    </span>
+                    <span class="text-xs text-slate-400">PNG or JPG</span>
+                  </div>
+                </button>
+
+                <!-- Remove button -->
+                <button
+                  id="removePhotoButton"
+                  x-show="hasPhoto"
+                  @click="clearPhoto()"
+                  type="button"
+                  aria-label="Remove photo"
+                  class="absolute right-3 top-3 rounded-full bg-white/90 p-2 text-slate-600 shadow-sm opacity-0 transition group-hover:opacity-100"
+                >
+                  <svg
+                    class="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M18 6 6 18" />
+                    <path d="M6 6 18 18" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <!-- Scale slider -->
+            <div class="flex w-full items-center gap-4 text-neutral-600 dark:text-neutral-300">
+              <!-- Small scale icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" color="currentColor" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 17L21 21" />
+                <path d="M19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19C15.4183 19 19 15.4183 19 11Z" />
+                <path d="M7.5 11L14.5 11" />
+              </svg>
+
+              <input
+                id="scaleRange"
+                type="range"
+                min="0.4"
+                max="2.5"
+                step="0.05"
+                x-model.number="scale"
+                x-ref="scaleRange"
+                class="h-1 w-full appearance-none rounded-full
+                      bg-neutral-600/15 dark:bg-neutral-300/15
+                      focus:outline-none
+                      [&::-webkit-slider-thumb]:size-4
+                      [&::-webkit-slider-thumb]:appearance-none
+                      [&::-webkit-slider-thumb]:rounded-full
+                      [&::-webkit-slider-thumb]:bg-black
+                      dark:[&::-webkit-slider-thumb]:bg-white
+                      active:[&::-webkit-slider-thumb]:scale-110
+                      [&::-moz-range-thumb]:size-4
+                      [&::-moz-range-thumb]:appearance-none
+                      [&::-moz-range-thumb]:rounded-full
+                      [&::-moz-range-thumb]:bg-black
+                      dark:[&::-moz-range-thumb]:bg-white
+                      active:[&::-moz-range-thumb]:scale-110"
+              />
+
+              <!-- Large scale icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" color="currentColor" fill="none" stroke="#141B34" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 17L21 21" />
+                <path d="M19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19C15.4183 19 19 15.4183 19 11Z" />
+                <path d="M7.5 11L14.5 11M11 7.5V14.5" />
+              </svg>
+            </div>
+
+            <div class="flex flex-col gap-3">
+              <label for="fullName" class="block text-sm font-medium text-heading">Full Name</label>
+              <div class="relative">
+                <input
+                  id="fullName"
+                  class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
+                  type="text"
+                  placeholder="Full Name"
+                  autocomplete="off"
+                  x-model="fullName"
+                  @input="onNameInput($event)"
+                  @focus="onNameFocus()"
+                  @blur="onNameBlur()"
+                  @keydown="onNameKeydown($event)"
+                  x-ref="fullNameInput"
+                />
+                <div
+                  id="nameSuggestions"
+                  class="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-slate-200 bg-white p-2 text-sm shadow-lg"
+                  x-show="nameSuggestionsVisible"
+                  @mousedown.prevent
+                >
+                  <template x-for="(s, idx) in nameSuggestions" :key="idx">
+                    <button
+                      type="button"
+                      class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                      :class="idx === 0 ? 'bg-slate-100' : ''"
+                      @click="pickNameSuggestion(s)"
+                      x-text="s"
+                    ></button>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-3">
+              <label for="designation" class="block text-sm font-medium text-heading">Designation</label>
+              <div class="relative">
+                <input
+                  id="designation"
+                  class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
+                  type="text"
+                  placeholder="Designation"
+                  autocomplete="off"
+                  x-model="designation"
+                  @input="onRoleInput($event)"
+                  @focus="onRoleFocus()"
+                  @blur="onRoleBlur()"
+                  @keydown="onRoleKeydown($event)"
+                  x-ref="roleInput"
+                />
+                <div
+                  id="roleSuggestions"
+                  class="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-slate-200 bg-white p-2 text-sm shadow-lg"
+                  x-show="roleSuggestionsVisible"
+                  @mousedown.prevent
+                >
+                  <template x-for="(s, idx) in roleSuggestions" :key="idx">
+                    <button
+                      type="button"
+                      class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                      :class="idx === 0 ? 'bg-slate-100' : ''"
+                      @click="pickRoleSuggestion(s)"
+                      x-text="s"
+                    ></button>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- Remove Background Button -->
+            <div class="flex flex-col gap-2">
+              <button
+                id="removeBgButton"
+                type="button"
+                @click="removeBackground()"
+                :disabled="!hasPhoto || removeBgBusy || removeBgUsed"
+                class="flex items-center justify-center text-gray-800/80 rounded text-sm h-12 w-full bg-indigo-600 border border-indigo-600
+                      active:scale-95 transition-transform disabled:cursor-not-allowed disabled:opacity-50 relative overflow-hidden"
+              >
+                <!-- Icon container -->
+                <div class="flex items-center justify-center h-full px-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="21" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"
+                      :class="removeBgBusy ? 'stroke-gray-400' : 'stroke-white'">
+                    <path d="M13.9258 12.7775L11.7775 10.6292C11.4847 10.3364 11.3383 10.19 11.1803 10.1117C10.8798 9.96277 10.527 9.96277 10.2264 10.1117C10.0685 10.19 9.92207 10.3364 9.62923 10.6292C9.33638 10.9221 9.18996 11.0685 9.11169 11.2264C8.96277 11.527 8.96277 11.8798 9.11169 12.1803C9.18996 12.3383 9.33638 12.4847 9.62923 12.7775L11.7775 14.9258M13.9258 12.7775L20.3708 19.2225C20.6636 19.5153 20.81 19.6617 20.8883 19.8197C21.0372 20.1202 21.0372 20.473 20.8883 20.7736C20.81 20.9315 20.6636 21.0779 20.3708 21.3708C20.0779 21.6636 19.9315 21.81 19.7736 21.8883C19.473 22.0372 19.1202 22.0372 18.8197 21.8883C18.6617 21.81 18.5153 21.6636 18.2225 21.3708L11.7775 14.9258M13.9258 12.7775L11.7775 14.9258" />
+                    <path d="M17 2L17.2948 2.7966C17.6813 3.84117 17.8746 4.36345 18.2556 4.74445C18.6366 5.12545 19.1588 5.31871 20.2034 5.70523L21 6L20.2034 6.29477C19.1588 6.68129 18.6366 6.87456 18.2556 7.25555C17.8746 7.63655 17.6813 8.15883 17.2948 9.2034L17 10L16.7052 9.2034C16.3187 8.15884 16.1254 7.63655 15.7444 7.25555C15.3634 6.87455 14.8412 6.68129 13.7966 6.29477L13 6L13.7966 5.70523C14.8412 5.31871 15.3634 5.12545 15.7444 4.74445C16.1254 4.36345 16.3187 3.84117 16.7052 2.7966L17 2Z" />
+                    <path d="M6 4L6.22108 4.59745C6.51097 5.38087 6.65592 5.77259 6.94167 6.05834C7.22741 6.34408 7.61913 6.48903 8.40255 6.77892L9 7L8.40255 7.22108C7.61913 7.51097 7.22741 7.65592 6.94166 7.94167C6.65592 8.22741 6.51097 8.61913 6.22108 9.40255L6 10L5.77892 9.40255C5.48903 8.61913 5.34408 8.22741 5.05833 7.94167C4.77259 7.65592 4.38087 7.51097 3.59745 7.22108L3 7L3.59745 6.77892C4.38087 6.48903 4.77259 6.34408 5.05833 6.05833C5.34408 5.77259 5.48903 5.38087 5.77892 4.59745L6 4Z" />
+                  </svg>
+                </div>
+
+                <!-- Button text -->
+                <span :class="removeBgBusy ? 'text-gray-400' : 'text-white'" x-text="removeBgBusy ? 'Removing...' : 'Remove Background'"></span>
+              </button>
+
+              <!-- Status message -->
+              <span
+                id="removeBgStatus"
+                class="text-xs text-slate-500"
+                x-show="removeBgMessage"
+                x-text="removeBgMessage"
+              ></span>
+            </div>
+
+
+            <div class="flex flex-col gap-2">
+              <button
+                id="exportButton"
+                type="button"
+                @click="exportPoster()"
+                :disabled="exportBusy"
+                class="flex w-full items-center justify-center text-gray-800/80 rounded text-sm h-12 bg-white border border-gray-500/30 
+                      active:scale-95 transition-transform disabled:cursor-not-allowed disabled:opacity-50 relative overflow-hidden"
+              >
+                <!-- Icon container -->
+                <div class="flex items-center justify-center h-full pr-2">
+                  <svg width="20" height="21" viewBox="0 0 20 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.5 13.125v3.5c0 .464-.176.91-.488 1.237a1.63 1.63 0 0 1-1.179.513H4.167c-.442 0-.866-.184-1.179-.513a1.8 1.8 0 0 1-.488-1.237v-3.5M5.833 8.75 10 13.125m0 0 4.167-4.375M10 13.125v-10.5" stroke="#1F2937" stroke-opacity=".8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+
+                <!-- Button text -->
+                <span class="font-medium" x-text="exportBusy ? 'Downloading…' : 'Download Image'"></span>
+              </button>
+
+              <!-- Status message -->
+              <span
+                id="exportStatus"
+                class="text-xs text-slate-500"
+                x-show="exportMessage"
+                x-text="exportMessage"
+              ></span>
+            </div>
+
+
           </div>
         </div>
       </section>

@@ -12,14 +12,32 @@ import {
   PREVIEW_ORIENTATIONS,
   type PreviewOrientation,
 } from "./state";
-import { type PhotoFramerUI, setNavState, setPreviewLoading } from "./ui";
 
 interface RenderParams {
   state: PhotoFramerState;
-  ui: PhotoFramerUI;
+  portraitCanvas: HTMLCanvasElement;
+  landscapeCanvas: HTMLCanvasElement;
   grouped: Record<PreviewOrientation, PhotoItem[]>;
   pendingCount: number;
   anyReady: () => boolean;
+}
+
+export interface PreviewUiState {
+  portrait: {
+    meta: string;
+    isLoading: boolean;
+    count: number;
+    index: number;
+    navDisabled: boolean;
+  };
+  landscape: {
+    meta: string;
+    isLoading: boolean;
+    count: number;
+    index: number;
+    navDisabled: boolean;
+  };
+  downloadDisabled: boolean;
 }
 
 interface RenderContext {
@@ -30,38 +48,50 @@ interface RenderContext {
 
 export const renderPreviews = ({
   state,
-  ui,
+  portraitCanvas,
+  landscapeCanvas,
   grouped,
   pendingCount,
   anyReady,
 }: RenderParams) => {
+  const result: PreviewUiState = {
+    portrait: {
+      meta: "",
+      isLoading: false,
+      count: 0,
+      index: 0,
+      navDisabled: true,
+    },
+    landscape: {
+      meta: "",
+      isLoading: false,
+      count: 0,
+      index: 0,
+      navDisabled: true,
+    },
+    downloadDisabled: true,
+  };
+
   if (!state.frame) {
-    [ui.portraitCanvas, ui.landscapeCanvas].forEach((canvas) => {
+    [portraitCanvas, landscapeCanvas].forEach((canvas) => {
       canvas.width = 1;
       canvas.height = 1;
       canvas.getContext("2d")?.clearRect(0, 0, 1, 1);
     });
 
-    ui.portraitMeta.textContent = ui.landscapeMeta.textContent =
-      "Upload a frame to begin";
-
-    PREVIEW_ORIENTATIONS.forEach((type) => {
-      setNavState(ui, type, 0);
-      setPreviewLoading(ui, type, false);
-    });
-
-    ui.downloadBtn.disabled = true;
-    return;
+    result.portrait.meta = "Upload a frame to begin";
+    result.landscape.meta = "Upload a frame to begin";
+    result.downloadDisabled = true;
+    return result;
   }
 
   for (const type of PREVIEW_ORIENTATIONS) {
-    const canvas = type === "portrait" ? ui.portraitCanvas : ui.landscapeCanvas;
-    const meta = type === "portrait" ? ui.portraitMeta : ui.landscapeMeta;
+    const canvas = type === "portrait" ? portraitCanvas : landscapeCanvas;
     const ctx = canvas.getContext("2d");
     if (!ctx) continue;
 
     const matches = grouped[type];
-    setNavState(ui, type, matches.length);
+    const navDisabled = matches.length <= 1;
 
     const isTypeLoading =
       matches.length === 0 && state.photos.length > 0 && pendingCount > 0;
@@ -70,37 +100,42 @@ export const renderPreviews = ({
     canvas.height = state.frame.naturalHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    const out = type === "portrait" ? result.portrait : result.landscape;
+    out.count = matches.length;
+    out.navDisabled = navDisabled;
+
     if (matches.length > 0) {
       const normalizedIndex = normalizePreviewIndex(
         state.previewIndex[type],
         matches.length,
       );
       state.previewIndex[type] = normalizedIndex;
+      out.index = normalizedIndex;
       const matchedPhoto = matches[normalizedIndex];
       const photoBitmap = matchedPhoto.bitmap;
 
       if (!photoBitmap) {
-        setPreviewLoading(ui, type, true);
-        meta.textContent = `Loading ${matchedPhoto.name}...`;
+        out.isLoading = true;
+        out.meta = `Loading ${matchedPhoto.name}...`;
         ctx.drawImage(state.frame, 0, 0);
         continue;
       }
 
-      setPreviewLoading(ui, type, false);
+      out.isLoading = false;
       compose(ctx, {
         frame: state.frame,
         photo: photoBitmap,
         settings: state.settings[type],
       });
-      meta.textContent = `${matchedPhoto.name} • ${type} (${normalizedIndex + 1}/${matches.length})`;
+      out.meta = `${matchedPhoto.name} • ${type} (${normalizedIndex + 1}/${matches.length})`;
     } else {
       ctx.drawImage(state.frame, 0, 0);
       if (isTypeLoading) {
-        setPreviewLoading(ui, type, true);
-        meta.textContent = `Loading ${type} photos...`;
+        out.isLoading = true;
+        out.meta = `Loading ${type} photos...`;
       } else {
-        setPreviewLoading(ui, type, false);
-        meta.textContent =
+        out.isLoading = false;
+        out.meta =
           state.photos.length === 0
             ? "Upload photos to preview"
             : `No ${type} photos selected`;
@@ -108,7 +143,8 @@ export const renderPreviews = ({
     }
   }
 
-  ui.downloadBtn.disabled = !anyReady() || state.isProcessing;
+  result.downloadDisabled = !anyReady() || state.isProcessing;
+  return result;
 };
 
 const compose = (ctx: CanvasRenderingContext2D, data: RenderContext) => {

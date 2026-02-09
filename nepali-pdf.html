@@ -6,7 +6,7 @@
     <title>Nepali PDF Table Extractor | brihatools</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
-  <body class="min-h-screen bg-slate-50 text-slate-900">
+  <body class="min-h-screen bg-slate-50 text-slate-900" x-data="nepaliPdfExtractor">
     <nav class="flex h-14 items-center border-b border-slate-800 bg-slate-900 px-6 text-white">
       <a href="./index.html" class="flex items-center gap-3 text-lg font-semibold tracking-tight">
         <img src="/brihatech.svg" alt="Brihatech" class="h-8 w-auto" />
@@ -35,15 +35,18 @@
               type="file"
               accept="application/pdf"
               class="mt-2 block w-full cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:uppercase file:tracking-[0.2em] file:text-white hover:file:bg-slate-800"
+              :disabled="busy"
+              @change="onPdfChange($event)"
             />
-            <div id="pdfStatus" class="mt-2 text-xs text-slate-500">No PDF selected</div>
+            <div id="pdfStatus" class="mt-2 text-xs text-slate-500" x-text="hasPdf ? `${pdfName} (${pdfSizeKb} KB)` : 'No PDF selected'">No PDF selected</div>
             <div id="processingStatus" class="mt-1 flex items-center gap-2 text-xs text-slate-500" role="status" aria-live="polite">
               <span
                 id="processingSpinner"
-                class="hidden h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"
+                class="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"
                 aria-hidden="true"
+                x-show="busy"
               ></span>
-              <span id="processingText"></span>
+              <span id="processingText" x-text="processingText"></span>
             </div>
           </div>
 
@@ -54,7 +57,8 @@
                 id="downloadCsv"
                 class="group flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 type="button"
-                disabled
+                :disabled="!exportEnabled"
+                @click="downloadCsv()"
               >
                 <img src="/icons/csv-icon.svg" alt="CSV" class="h-6 w-6" />
                 <span class="flex flex-col">
@@ -66,7 +70,8 @@
                 id="downloadXlsx"
                 class="group flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 type="button"
-                disabled
+                :disabled="!exportEnabled"
+                @click="downloadXlsx()"
               >
                 <img src="/icons/microsoft-excel-icon.svg" alt="Excel" class="h-6 w-6" />
                 <span class="flex flex-col">
@@ -75,7 +80,7 @@
                 </span>
               </button>
             </div>
-            <div id="exportStatus" class="mt-3 text-xs text-slate-500"></div>
+            <div id="exportStatus" class="mt-3 text-xs text-slate-500" x-text="exportStatus"></div>
           </div>
         </div>
 
@@ -87,19 +92,31 @@
                 Shows the first rows detected from the main table.
               </p>
             </div>
-            <div class="text-xs text-slate-500" id="tableMeta"></div>
+            <div class="text-xs text-slate-500" id="tableMeta" x-text="tableMeta"></div>
           </div>
 
           <div class="mt-4 overflow-auto rounded-xl border border-slate-200">
             <table class="min-w-full text-left text-sm" id="previewTable">
               <thead class="sticky top-0 bg-slate-50 text-xs uppercase tracking-[0.2em] text-slate-500">
-                <tr id="previewHead"></tr>
+                <tr id="previewHead">
+                  <template x-for="(col, idx) in header" :key="idx">
+                    <th class="px-3 py-2 whitespace-nowrap" x-text="col"></th>
+                  </template>
+                </tr>
               </thead>
-              <tbody id="previewBody" class="divide-y divide-slate-100"></tbody>
+              <tbody id="previewBody" class="divide-y divide-slate-100">
+                <template x-for="(row, rIdx) in rows" :key="rIdx">
+                  <tr>
+                    <template x-for="(col, cIdx) in header" :key="cIdx">
+                      <td class="px-3 py-2 align-top" x-text="row[cIdx] ?? ''"></td>
+                    </template>
+                  </tr>
+                </template>
+              </tbody>
             </table>
           </div>
 
-          <div class="mt-3 text-xs text-slate-500" id="warning"></div>
+          <div class="mt-3 text-xs text-slate-500" id="warning" x-text="warning"></div>
         </div>
       </section>
     </main>
