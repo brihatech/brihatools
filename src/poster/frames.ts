@@ -15,6 +15,7 @@ export type FrameConfig = {
   thumbSrc?: string;
   hasOverlay: boolean;
   overlaySrc?: string;
+  categories: Array<"Chunna Poudel" | "Binod Chaudhary">;
   nameText: FrameTextConfig;
   roleText: FrameTextConfig;
 };
@@ -24,6 +25,7 @@ export const FRAMES: FrameConfig[] = [
     id: "frame1",
     src: "/frames/frame1.png",
     thumbSrc: "/frames/frame1.png",
+    categories: ["Chunna Poudel"],
     hasOverlay: false,
     nameText: {
       xPct: 8,
@@ -50,6 +52,7 @@ export const FRAMES: FrameConfig[] = [
     id: "frame2",
     src: "/frames/frame2.png",
     thumbSrc: "/frames/frame2.png",
+    categories: ["Chunna Poudel"],
     hasOverlay: false,
     nameText: {
       xPct: 8,
@@ -76,6 +79,7 @@ export const FRAMES: FrameConfig[] = [
     id: "frame3",
     src: "/frames/frame3.png",
     thumbSrc: "/frames/frame3.png",
+    categories: ["Binod Chaudhary"],
     hasOverlay: false,
     nameText: {
       xPct: 8,
@@ -102,6 +106,7 @@ export const FRAMES: FrameConfig[] = [
     id: "frame4",
     src: "/frames/frame4.png",
     thumbSrc: "/frames/frame4.png",
+    categories: ["Binod Chaudhary"],
     hasOverlay: false,
     nameText: {
       xPct: 48,

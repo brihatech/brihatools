@@ -2,6 +2,11 @@ import { getAlpine, startAlpine } from "@/alpine";
 
 import { removeBackground } from "./background";
 import { computeContainedRect, generatePoster } from "./canvas";
+import {
+  getDefaultPosterCategoryForHostname,
+  type PosterCategory,
+  type PosterRealCategory,
+} from "./category";
 import { DEFAULT_FRAME_SRC, FRAMES } from "./frames";
 import { extractLastToken, getSuggestions, splitByCursor } from "./suggestions";
 
@@ -28,6 +33,7 @@ Alpine.data("posterBuilder", () => {
   return {
     frames: FRAMES,
     activeFrame: DEFAULT_FRAME_SRC,
+    selectedCategory: "All" as PosterCategory,
 
     // Photo placement
     hasPhoto: false,
@@ -68,6 +74,24 @@ Alpine.data("posterBuilder", () => {
         this.frames.find((frame) => frame.src === this.activeFrame) ??
         this.frames[0]
       );
+    },
+
+    get filteredFrames() {
+      const selected = this.selectedCategory;
+      if (selected === "All") {
+        return this.frames;
+      }
+
+      const selectedReal = selected as PosterRealCategory;
+
+      return this.frames.filter((frame) => {
+        const categories = frame.categories;
+        if (!categories || categories.length === 0) {
+          // Global frame: visible in every category.
+          return true;
+        }
+        return categories.includes(selectedReal);
+      });
     },
 
     get nameTransformStyle() {
@@ -127,6 +151,11 @@ Alpine.data("posterBuilder", () => {
     },
 
     init() {
+      const inferred = getDefaultPosterCategoryForHostname(
+        window.location.hostname,
+      );
+      this.setCategory(inferred);
+
       const frameImage = this.ref<HTMLImageElement>("frameImage");
       if (frameImage) {
         frameImage.addEventListener("load", () => {
@@ -142,6 +171,25 @@ Alpine.data("posterBuilder", () => {
       });
 
       this.updateFrameOverlay();
+    },
+
+    setCategory(category: PosterCategory) {
+      this.selectedCategory = category;
+
+      // If the chosen category has no frames, fall back to All.
+      if (this.selectedCategory !== "All" && this.filteredFrames.length === 0) {
+        this.selectedCategory = "All";
+      }
+
+      // Keep the active frame consistent with the filtered set.
+      const allowed = new Set(this.filteredFrames.map((f) => f.src));
+      if (!allowed.has(this.activeFrame)) {
+        const first = this.filteredFrames[0];
+        if (first) {
+          this.activeFrame = first.src;
+          queueMicrotask(() => this.updateFrameOverlay());
+        }
+      }
     },
 
     setFrame(src: string) {
