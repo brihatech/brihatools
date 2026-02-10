@@ -1,4 +1,5 @@
 import { getAlpine, startAlpine } from "@/alpine";
+import { enforcePosterOnlyHosts } from "@/hostRedirect";
 
 import { handleDownload } from "./downloader";
 import { loadFrame } from "./frameLoader";
@@ -9,6 +10,8 @@ import {
   type PreviewOrientation,
   resetPreviewIndices,
 } from "./state";
+
+enforcePosterOnlyHosts();
 
 const Alpine = getAlpine();
 

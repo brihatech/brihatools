@@ -1,4 +1,5 @@
 import { getAlpine, startAlpine } from "@/alpine";
+import { enforcePosterOnlyHosts } from "@/hostRedirect";
 
 import { removeBackground } from "./background";
 import { computeContainedRect, generatePoster } from "./canvas";
@@ -11,6 +12,8 @@ import { DEFAULT_FRAME_SRC, FRAMES } from "./frames";
 import { extractLastToken, getSuggestions, splitByCursor } from "./suggestions";
 
 const TRANSLITERATE_DEBOUNCE_MS = 180;
+
+enforcePosterOnlyHosts();
 
 const Alpine = getAlpine();
 

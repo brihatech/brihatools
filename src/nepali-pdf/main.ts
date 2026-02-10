@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 
 import { getAlpine, startAlpine } from "@/alpine";
+import { enforcePosterOnlyHosts } from "@/hostRedirect";
 
 import { basenameNoExt, downloadBlob } from "./download";
 import { extractAllPagesFromPdfArrayBuffer } from "./pdf";
@@ -13,6 +14,8 @@ import {
   sanitizeHeaderRow,
   toCsv,
 } from "./table";
+
+enforcePosterOnlyHosts();
 
 const DEFAULT_Y_TOLERANCE = 2.0;
 const DEFAULT_PREVIEW_ROWS = 40;
