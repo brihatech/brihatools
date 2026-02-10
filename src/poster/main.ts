@@ -59,6 +59,8 @@ Alpine.data("posterBuilder", () => {
     nameOffsetY: 0,
     roleOffsetX: 0,
     roleOffsetY: 0,
+    nameOffsetsByFrame: {} as Record<string, { x: number; y: number }>,
+    roleOffsetsByFrame: {} as Record<string, { x: number; y: number }>,
 
     // Suggestions
     nameSuggestions: [] as string[],
@@ -125,6 +127,28 @@ Alpine.data("posterBuilder", () => {
       ].join("; ");
     },
 
+    saveActiveTextOffsets() {
+      const key = this.activeFrame;
+      if (!key) return;
+      this.nameOffsetsByFrame[key] = {
+        x: this.nameOffsetX,
+        y: this.nameOffsetY,
+      };
+      this.roleOffsetsByFrame[key] = {
+        x: this.roleOffsetX,
+        y: this.roleOffsetY,
+      };
+    },
+
+    applyTextOffsetsForFrame(frameSrc: string) {
+      const nameOffsets = this.nameOffsetsByFrame[frameSrc];
+      this.nameOffsetX = nameOffsets?.x ?? 0;
+      this.nameOffsetY = nameOffsets?.y ?? 0;
+      const roleOffsets = this.roleOffsetsByFrame[frameSrc];
+      this.roleOffsetX = roleOffsets?.x ?? 0;
+      this.roleOffsetY = roleOffsets?.y ?? 0;
+    },
+
     clampDragDelta(target: HTMLElement, dx: number, dy: number) {
       const frameOverlay = this.ref<HTMLDivElement>("frameOverlay");
       if (!frameOverlay) {
@@ -157,6 +181,8 @@ Alpine.data("posterBuilder", () => {
       );
       this.setCategory(inferred);
 
+      this.applyTextOffsetsForFrame(this.activeFrame);
+
       const frameImage = this.ref<HTMLImageElement>("frameImage");
       if (frameImage) {
         frameImage.addEventListener("load", () => {
@@ -187,14 +213,19 @@ Alpine.data("posterBuilder", () => {
       if (!allowed.has(this.activeFrame)) {
         const first = this.filteredFrames[0];
         if (first) {
+          this.saveActiveTextOffsets();
           this.activeFrame = first.src;
+          this.applyTextOffsetsForFrame(this.activeFrame);
           queueMicrotask(() => this.updateFrameOverlay());
         }
       }
     },
 
     setFrame(src: string) {
+      if (src === this.activeFrame) return;
+      this.saveActiveTextOffsets();
       this.activeFrame = src;
+      this.applyTextOffsetsForFrame(this.activeFrame);
       queueMicrotask(() => this.updateFrameOverlay());
     },
 
@@ -373,6 +404,7 @@ Alpine.data("posterBuilder", () => {
           nameText.releasePointerCapture(event.pointerId);
         }
       }
+      this.saveActiveTextOffsets();
     },
 
     onRolePointerDown(event: PointerEvent) {
@@ -415,6 +447,7 @@ Alpine.data("posterBuilder", () => {
           roleText.releasePointerCapture(event.pointerId);
         }
       }
+      this.saveActiveTextOffsets();
     },
 
     async removeBackground() {
