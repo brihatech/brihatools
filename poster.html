@@ -421,16 +421,17 @@
                   />
                   <div
                     id="nameSuggestions"
-                    class="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-slate-200 bg-white p-2 text-sm shadow-lg"
+                    class="absolute left-0 right-0 top-full z-20 mt-2 rounded-sm border border-slate-200 bg-white p-2 text-sm shadow-lg"
                     x-show="nameSuggestionsVisible"
                     @mousedown.prevent
                   >
                     <template x-for="(s, idx) in nameSuggestions" :key="idx">
                       <button
                         type="button"
-                        class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
-                        :class="idx === 0 ? 'bg-slate-100' : ''"
+                        class="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                        :class="idx === nameSuggestionIndex ? 'bg-slate-100' : ''"
                         @click="pickNameSuggestion(s)"
+                        @mouseenter="nameSuggestionIndex = idx"
                         x-text="s"
                       ></button>
                     </template>
@@ -456,16 +457,17 @@
                   />
                   <div
                     id="roleSuggestions"
-                    class="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-slate-200 bg-white p-2 text-sm shadow-lg"
+                    class="absolute left-0 right-0 top-full z-20 mt-2 rounded-sm border border-slate-200 bg-white p-2 text-sm shadow-lg"
                     x-show="roleSuggestionsVisible"
                     @mousedown.prevent
                   >
                     <template x-for="(s, idx) in roleSuggestions" :key="idx">
                       <button
                         type="button"
-                        class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
-                        :class="idx === 0 ? 'bg-slate-100' : ''"
+                        class="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                        :class="idx === roleSuggestionIndex ? 'bg-slate-100' : ''"
                         @click="pickRoleSuggestion(s)"
+                        @mouseenter="roleSuggestionIndex = idx"
                         x-text="s"
                       ></button>
                     </template>

@@ -70,6 +70,8 @@ Alpine.data("posterBuilder", () => {
     roleSuggestions: [] as string[],
     nameSuggestionsVisible: false,
     roleSuggestionsVisible: false,
+    nameSuggestionIndex: -1,
+    roleSuggestionIndex: -1,
 
     get photoTransformStyle() {
       return `transform: translate(-50%, -50%) translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale});`;
@@ -567,9 +569,11 @@ Alpine.data("posterBuilder", () => {
         if (kind === "name") {
           this.nameSuggestions = [];
           this.nameSuggestionsVisible = false;
+          this.nameSuggestionIndex = -1;
         } else {
           this.roleSuggestions = [];
           this.roleSuggestionsVisible = false;
+          this.roleSuggestionIndex = -1;
         }
         return;
       }
@@ -595,12 +599,35 @@ Alpine.data("posterBuilder", () => {
         if (kind === "name") {
           this.nameSuggestions = suggestions;
           this.nameSuggestionsVisible = suggestions.length > 0;
+          this.nameSuggestionIndex = suggestions.length > 0 ? 0 : -1;
         } else {
           this.roleSuggestions = suggestions;
           this.roleSuggestionsVisible = suggestions.length > 0;
+          this.roleSuggestionIndex = suggestions.length > 0 ? 0 : -1;
         }
       } catch (error) {
         console.error("Transliteration error:", error);
+      }
+    },
+
+    setSuggestionIndex(kind: "name" | "role", nextIndex: number) {
+      const suggestions =
+        kind === "name" ? this.nameSuggestions : this.roleSuggestions;
+      const count = suggestions.length;
+      if (count === 0) {
+        if (kind === "name") {
+          this.nameSuggestionIndex = -1;
+        } else {
+          this.roleSuggestionIndex = -1;
+        }
+        return;
+      }
+
+      const normalized = ((nextIndex % count) + count) % count;
+      if (kind === "name") {
+        this.nameSuggestionIndex = normalized;
+      } else {
+        this.roleSuggestionIndex = normalized;
       }
     },
 
@@ -661,6 +688,7 @@ Alpine.data("posterBuilder", () => {
         suppressNextNameSuggestions = false;
         this.nameSuggestions = [];
         this.nameSuggestionsVisible = false;
+        this.nameSuggestionIndex = -1;
         return;
       }
 
@@ -674,6 +702,7 @@ Alpine.data("posterBuilder", () => {
         suppressNextRoleSuggestions = false;
         this.roleSuggestions = [];
         this.roleSuggestionsVisible = false;
+        this.roleSuggestionIndex = -1;
         return;
       }
 
@@ -693,35 +722,75 @@ Alpine.data("posterBuilder", () => {
     onNameBlur() {
       window.setTimeout(() => {
         this.nameSuggestionsVisible = false;
+        this.nameSuggestionIndex = -1;
       }, 100);
     },
 
     onRoleBlur() {
       window.setTimeout(() => {
         this.roleSuggestionsVisible = false;
+        this.roleSuggestionIndex = -1;
       }, 100);
     },
 
     onNameKeydown(event: KeyboardEvent) {
+      const isArrowDown = event.key === "ArrowDown";
+      const isArrowUp = event.key === "ArrowUp";
       const shouldApply =
         event.key === "Enter" || event.key === "Tab" || event.key === "Return";
+
+      if (isArrowDown || isArrowUp) {
+        if (!this.nameSuggestionsVisible && this.nameSuggestions.length > 0) {
+          this.nameSuggestionsVisible = true;
+        }
+        if (this.nameSuggestions.length > 0) {
+          event.preventDefault();
+          const delta = isArrowDown ? 1 : -1;
+          const current = this.nameSuggestionIndex;
+          const next = current === -1 ? 0 : current + delta;
+          this.setSuggestionIndex("name", next);
+        }
+        return;
+      }
+
       if (!shouldApply) return;
       if (!this.nameSuggestionsVisible) return;
-      const first = this.nameSuggestions[0];
-      if (!first) return;
+      const index = this.nameSuggestionIndex;
+      const picked =
+        index >= 0 ? this.nameSuggestions[index] : this.nameSuggestions[0];
+      if (!picked) return;
       event.preventDefault();
-      this.applySuggestion("name", first);
+      this.applySuggestion("name", picked);
     },
 
     onRoleKeydown(event: KeyboardEvent) {
+      const isArrowDown = event.key === "ArrowDown";
+      const isArrowUp = event.key === "ArrowUp";
       const shouldApply =
         event.key === "Enter" || event.key === "Tab" || event.key === "Return";
+
+      if (isArrowDown || isArrowUp) {
+        if (!this.roleSuggestionsVisible && this.roleSuggestions.length > 0) {
+          this.roleSuggestionsVisible = true;
+        }
+        if (this.roleSuggestions.length > 0) {
+          event.preventDefault();
+          const delta = isArrowDown ? 1 : -1;
+          const current = this.roleSuggestionIndex;
+          const next = current === -1 ? 0 : current + delta;
+          this.setSuggestionIndex("role", next);
+        }
+        return;
+      }
+
       if (!shouldApply) return;
       if (!this.roleSuggestionsVisible) return;
-      const first = this.roleSuggestions[0];
-      if (!first) return;
+      const index = this.roleSuggestionIndex;
+      const picked =
+        index >= 0 ? this.roleSuggestions[index] : this.roleSuggestions[0];
+      if (!picked) return;
       event.preventDefault();
-      this.applySuggestion("role", first);
+      this.applySuggestion("role", picked);
     },
 
     pickNameSuggestion(value: string) {
