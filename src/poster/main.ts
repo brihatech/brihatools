@@ -125,6 +125,7 @@ Alpine.data("posterBuilder", () => {
         `color: ${roleText.color}`,
         `font-family: ${roleText.fontFamily}`,
         `font-size: calc(${roleText.fontSizePx} * 1em)`,
+        "line-height: 1.1",
         `font-weight: ${roleText.fontWeight}`,
         `background-color: ${roleText.backgroundColor}`,
         "transform-origin: left top",
@@ -562,7 +563,10 @@ Alpine.data("posterBuilder", () => {
 
     // ----- Transliteration suggestions -----
 
-    async fetchSuggestions(input: HTMLInputElement, kind: "name" | "role") {
+    async fetchSuggestions(
+      input: HTMLInputElement | HTMLTextAreaElement,
+      kind: "name" | "role",
+    ) {
       const { before } = splitByCursor(input);
       const { token } = extractLastToken(before);
       if (!token.trim()) {
@@ -635,7 +639,7 @@ Alpine.data("posterBuilder", () => {
       const input =
         kind === "name"
           ? this.ref<HTMLInputElement>("fullNameInput")
-          : this.ref<HTMLInputElement>("roleInput");
+          : this.ref<HTMLTextAreaElement>("roleInput");
       if (!input) return;
 
       if (kind === "name") {
@@ -661,7 +665,7 @@ Alpine.data("posterBuilder", () => {
       const input =
         kind === "name"
           ? this.ref<HTMLInputElement>("fullNameInput")
-          : this.ref<HTMLInputElement>("roleInput");
+          : this.ref<HTMLTextAreaElement>("roleInput");
       if (!input) return;
 
       const { before, after } = splitByCursor(input);
@@ -706,7 +710,7 @@ Alpine.data("posterBuilder", () => {
         return;
       }
 
-      const input = event.target as HTMLInputElement;
+      const input = event.target as HTMLTextAreaElement;
       this.designation = input.value;
       this.scheduleSuggestions("role");
     },
@@ -764,6 +768,20 @@ Alpine.data("posterBuilder", () => {
     },
 
     onRoleKeydown(event: KeyboardEvent) {
+      const isEnter = event.key === "Enter" || event.key === "Return";
+      if (isEnter && event.shiftKey) {
+        const input = event.target as HTMLTextAreaElement;
+        const value = input.value;
+        const start = input.selectionStart ?? value.length;
+        const end = input.selectionEnd ?? value.length;
+        const nextValue = `${value.slice(0, start)}\n${value.slice(end)}`;
+        input.value = nextValue;
+        input.setSelectionRange(start + 1, start + 1);
+        this.designation = nextValue;
+        event.preventDefault();
+        return;
+      }
+
       const isArrowDown = event.key === "ArrowDown";
       const isArrowUp = event.key === "ArrowUp";
       const shouldApply =
@@ -784,6 +802,10 @@ Alpine.data("posterBuilder", () => {
       }
 
       if (!shouldApply) return;
+      if (isEnter && !this.roleSuggestionsVisible) {
+        event.preventDefault();
+        return;
+      }
       if (!this.roleSuggestionsVisible) return;
       const index = this.roleSuggestionIndex;
       const picked =

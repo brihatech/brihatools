@@ -8,6 +8,7 @@ export type Rect = {
 export type PillStyle = {
   fontFamily: string;
   fontSizePx: number;
+  lineHeightPx: number;
   fontWeight: string;
   textColor: string;
   backgroundColor: string;
@@ -52,9 +53,13 @@ export const computeContainedRect = (
 
 export const getPillStyle = (element: HTMLElement): PillStyle => {
   const style = getComputedStyle(element);
+  const fontSizePx = parsePx(style.fontSize);
+  const lineHeightPx = parsePx(style.lineHeight);
+  const resolvedLineHeight = lineHeightPx > 0 ? lineHeightPx : fontSizePx * 1.2;
   return {
     fontFamily: style.fontFamily || "system-ui",
-    fontSizePx: parsePx(style.fontSize),
+    fontSizePx,
+    lineHeightPx: resolvedLineHeight,
     fontWeight: style.fontWeight || "600",
     textColor: style.color || "#0f172a",
     backgroundColor: style.backgroundColor || "rgba(255,255,255,0.8)",
@@ -243,8 +248,9 @@ export async function generatePoster(config: PosterConfig) {
   const safeRole = designation.trim();
 
   const makePillSpec = (text: string, pill: PillStyle, scale: number) => {
-    const upperText = text.toUpperCase();
+    const lines = text.split(/\r?\n/).map((line) => line.toUpperCase());
     const fontSize = pill.fontSizePx * sy * scale;
+    const lineHeight = pill.lineHeightPx * sy * scale;
     const padL = pill.paddingLeft * sx * scale;
     const padR = pill.paddingRight * sx * scale;
     const padT = pill.paddingTop * sy * scale;
@@ -252,20 +258,25 @@ export async function generatePoster(config: PosterConfig) {
 
     ctx.font = `${pill.fontWeight} ${fontSize}px ${pill.fontFamily}`;
     ctx.textBaseline = "top";
-    const metrics = ctx.measureText(upperText);
+    let maxTextWidth = 0;
+    for (const line of lines) {
+      const metrics = ctx.measureText(line);
+      maxTextWidth = Math.max(maxTextWidth, metrics.width);
+    }
 
-    const width = metrics.width + padL + padR;
-    const height = fontSize + padT + padB;
+    const width = maxTextWidth + padL + padR;
+    const height = lineHeight * lines.length + padT + padB;
     const radius = Math.min((pill.borderRadius || height / 2) * sy, height / 2);
 
     return {
-      text: upperText,
+      lines,
       font: ctx.font,
       width,
       height,
       radius,
       padL,
       padT,
+      lineHeight,
       textColor: pill.textColor,
       backgroundColor: pill.backgroundColor,
     };
@@ -283,7 +294,13 @@ export async function generatePoster(config: PosterConfig) {
     drawRoundedRect(ctx, x, y, spec.width, spec.height, spec.radius);
     ctx.fill();
     ctx.fillStyle = spec.textColor;
-    ctx.fillText(spec.text, x + spec.padL, y + spec.padT);
+    spec.lines.forEach((line, index) => {
+      ctx.fillText(
+        line,
+        x + spec.padL,
+        y + spec.padT + index * spec.lineHeight,
+      );
+    });
     ctx.restore();
   };
 

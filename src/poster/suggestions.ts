@@ -2,7 +2,9 @@ import { getTransliterateSuggestions } from "react-transliterate";
 
 const TRANSLITERATE_LANG = "ne";
 
-export const splitByCursor = (input: HTMLInputElement) => {
+export const splitByCursor = (
+  input: HTMLInputElement | HTMLTextAreaElement,
+) => {
   const value = input.value;
   const cursorIndex = input.selectionStart ?? value.length;
   return {

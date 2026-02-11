@@ -116,7 +116,7 @@
                   Full Name
                 </div>
                 <div
-                  class="pointer-events-auto absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab"
+                  class="pointer-events-auto absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab whitespace-pre-line"
                   id="roleText"
                   x-ref="roleText"
                   x-show="designation.trim().length"
@@ -438,23 +438,23 @@
                   </div>
                 </div>
               </div>
-
-              <div class="flex flex-col gap-3">
+              <div class="flex flex-col gap-1">
                 <label for="designation" class="hidden lg:block text-sm font-medium text-heading">Designation</label>
+                <p class="text-xs text-slate-500">Press Shift+Enter for a new line.</p>
                 <div class="relative">
-                  <input
+                  <textarea
                     id="designation"
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
-                    type="text"
                     placeholder="Designation"
                     autocomplete="off"
+                    rows="2"
                     x-model="designation"
                     @input="onRoleInput($event)"
                     @focus="onRoleFocus()"
                     @blur="onRoleBlur()"
                     @keydown="onRoleKeydown($event)"
                     x-ref="roleInput"
-                  />
+                  ></textarea>
                   <div
                     id="roleSuggestions"
                     class="absolute left-0 right-0 top-full z-20 mt-2 rounded-sm border border-slate-200 bg-white p-2 text-sm shadow-lg"
