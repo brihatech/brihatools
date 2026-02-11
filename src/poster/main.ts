@@ -1,7 +1,10 @@
 import { getAlpine, startAlpine } from "@/alpine";
 import { enforcePosterOnlyHosts } from "@/hostRedirect";
 
-import { removeBackground } from "./background";
+import {
+  removeBackground as removeBackgroundImage,
+  type BackgroundRemovalQuality,
+} from "./background";
 import { computeContainedRect, generatePoster } from "./canvas";
 import {
   getDefaultPosterCategoryForHostname,
@@ -48,7 +51,7 @@ Alpine.data("posterBuilder", () => {
 
     // Remove BG
     removeBgBusy: false,
-    removeBgUsed: false,
+    removeBgQualityUsed: null as BackgroundRemovalQuality | null,
     removeBgMessage: "",
 
     // Export
@@ -295,7 +298,7 @@ Alpine.data("posterBuilder", () => {
 
       this.photoSrc = source;
       this.hasPhoto = true;
-      this.removeBgUsed = false;
+      this.removeBgQualityUsed = null;
       this.removeBgBusy = false;
       this.removeBgMessage = "";
 
@@ -323,7 +326,7 @@ Alpine.data("posterBuilder", () => {
 
       this.photoSrc = "";
       this.hasPhoto = false;
-      this.removeBgUsed = false;
+      this.removeBgQualityUsed = null;
       this.removeBgBusy = false;
       this.removeBgMessage = "";
       this.offsetX = 0;
@@ -456,17 +459,24 @@ Alpine.data("posterBuilder", () => {
       this.saveActiveTextOffsets();
     },
 
-    async removeBackground() {
-      if (!this.hasPhoto || !this.photoSrc || this.removeBgUsed) {
+    async removeBackground(quality: BackgroundRemovalQuality = "standard") {
+      if (!this.hasPhoto || !this.photoSrc) {
+        return;
+      }
+
+      if (this.removeBgQualityUsed === quality) {
         return;
       }
 
       removeBgRunId += 1;
       const runId = removeBgRunId;
       let timeoutHandle: number | undefined;
+      const isHighQuality = quality === "hq";
 
       this.removeBgBusy = true;
-      this.removeBgMessage = "";
+      this.removeBgMessage = isHighQuality
+        ? "Downloading HD model..."
+        : "";
 
       await new Promise<void>((resolve) => {
         window.setTimeout(() => resolve(), 0);
@@ -477,7 +487,7 @@ Alpine.data("posterBuilder", () => {
 
       try {
         const processedSource = await Promise.race([
-          removeBackground(this.photoSrc),
+          removeBackgroundImage(this.photoSrc, quality),
           new Promise<string>((_, reject) => {
             timeoutHandle = window.setTimeout(() => {
               reject(new Error("Background removal timed out."));
@@ -495,12 +505,16 @@ Alpine.data("posterBuilder", () => {
         }
 
         this.photoSrc = processedSource;
-        this.removeBgUsed = true;
-        this.removeBgMessage = "Background removed";
+        this.removeBgQualityUsed = quality;
+        this.removeBgMessage = isHighQuality
+          ? "Background removed (HD)"
+          : "Background removed";
       } catch (error) {
         console.error("Error during background removal:", error);
         if (runId === removeBgRunId) {
-          this.removeBgMessage = "Background removal failed.";
+          this.removeBgMessage = isHighQuality
+            ? "HD background removal failed."
+            : "Background removal failed.";
         }
       } finally {
         if (timeoutHandle) {
