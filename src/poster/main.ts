@@ -15,6 +15,9 @@ import { DEFAULT_FRAME_SRC, FRAMES } from "./frames";
 import { extractLastToken, getSuggestions, splitByCursor } from "./suggestions";
 
 const TRANSLITERATE_DEBOUNCE_MS = 180;
+const TEXT_SCALE_MIN = 0.8;
+const TEXT_SCALE_MAX = 1.2;
+const TEXT_SCALE_STEP = 0.05;
 
 enforcePosterOnlyHosts();
 
@@ -62,6 +65,10 @@ Alpine.data("posterBuilder", () => {
     // Text
     fullName: "",
     designation: "",
+    nameScaleAdjust: 1,
+    roleScaleAdjust: 1,
+    textScaleMin: TEXT_SCALE_MIN,
+    textScaleMax: TEXT_SCALE_MAX,
     nameOffsetX: 0,
     nameOffsetY: 0,
     roleOffsetX: 0,
@@ -117,7 +124,7 @@ Alpine.data("posterBuilder", () => {
         `font-weight: ${nameText.fontWeight}`,
         `background-color: ${nameText.backgroundColor}`,
         "transform-origin: left top",
-        `transform: translate(${this.nameOffsetX}px, ${this.nameOffsetY}px) scale(${nameText.scale})`,
+        `transform: translate(${this.nameOffsetX}px, ${this.nameOffsetY}px) scale(${nameText.scale * this.nameScaleAdjust})`,
       ].join("; ");
     },
 
@@ -133,8 +140,25 @@ Alpine.data("posterBuilder", () => {
         `font-weight: ${roleText.fontWeight}`,
         `background-color: ${roleText.backgroundColor}`,
         "transform-origin: left top",
-        `transform: translate(${this.roleOffsetX}px, ${this.roleOffsetY}px) scale(${roleText.scale})`,
+        `transform: translate(${this.roleOffsetX}px, ${this.roleOffsetY}px) scale(${roleText.scale * this.roleScaleAdjust})`,
       ].join("; ");
+    },
+
+    clampTextScale(value: number) {
+      const rounded = Number(value.toFixed(2));
+      return Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, rounded));
+    },
+
+    adjustNameScale(direction: number) {
+      this.nameScaleAdjust = this.clampTextScale(
+        this.nameScaleAdjust + direction * TEXT_SCALE_STEP,
+      );
+    },
+
+    adjustRoleScale(direction: number) {
+      this.roleScaleAdjust = this.clampTextScale(
+        this.roleScaleAdjust + direction * TEXT_SCALE_STEP,
+      );
     },
 
     saveActiveTextOffsets() {
@@ -554,8 +578,10 @@ Alpine.data("posterBuilder", () => {
           nameBaseYPct: this.activeFrameConfig.nameText.yPct,
           roleBaseXPct: this.activeFrameConfig.roleText.xPct,
           roleBaseYPct: this.activeFrameConfig.roleText.yPct,
-          nameScale: this.activeFrameConfig.nameText.scale,
-          roleScale: this.activeFrameConfig.roleText.scale,
+          nameScale:
+            this.activeFrameConfig.nameText.scale * this.nameScaleAdjust,
+          roleScale:
+            this.activeFrameConfig.roleText.scale * this.roleScaleAdjust,
           hasOverlay: this.activeFrameConfig.hasOverlay,
           overlaySrc: this.activeFrameConfig.overlaySrc ?? "",
           nameOffsetX: this.nameOffsetX,

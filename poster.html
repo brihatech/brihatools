@@ -431,7 +431,35 @@
               :class="hasPhoto ? '' : 'hidden lg:flex'"
             >
               <div class="flex flex-col gap-3">
-                <label for="fullName" class="hidden lg:block text-sm font-medium text-heading">Full Name</label>
+                <div class="hidden lg:flex items-center justify-between gap-3">
+                  <label for="fullName" class="text-sm font-medium text-heading">Full Name</label>
+                  <div class="flex items-center gap-2 text-xs text-slate-500">
+                    <button
+                      type="button"
+                      class="inline-flex h-7 w-7 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      @click="adjustNameScale(-1)"
+                      :disabled="nameScaleAdjust <= textScaleMin"
+                      aria-label="Decrease full name size"
+                    >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M5 12h14" />
+                      </svg>
+                    </button>
+                    <span class="min-w-10 text-center font-medium text-slate-600" x-text="Math.round(nameScaleAdjust * 100) + '%'"></span>
+                    <button
+                      type="button"
+                      class="inline-flex h-7 w-7 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      @click="adjustNameScale(1)"
+                      :disabled="nameScaleAdjust >= textScaleMax"
+                      aria-label="Increase full name size"
+                    >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M12 5v14" />
+                        <path d="M5 12h14" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
                 <div class="relative">
                   <input
                     id="fullName"
@@ -466,7 +494,35 @@
                 </div>
               </div>
               <div class="flex flex-col gap-1">
-                <label for="designation" class="hidden lg:block text-sm font-medium text-heading">Designation</label>
+                <div class="hidden lg:flex items-center justify-between gap-3">
+                  <label for="designation" class="text-sm font-medium text-heading">Designation</label>
+                  <div class="flex items-center gap-2 text-xs text-slate-500">
+                    <button
+                      type="button"
+                      class="inline-flex h-7 w-7 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      @click="adjustRoleScale(-1)"
+                      :disabled="roleScaleAdjust <= textScaleMin"
+                      aria-label="Decrease designation size"
+                    >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M5 12h14" />
+                      </svg>
+                    </button>
+                    <span class="min-w-10 text-center font-medium text-slate-600" x-text="Math.round(roleScaleAdjust * 100) + '%'"></span>
+                    <button
+                      type="button"
+                      class="inline-flex h-7 w-7 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      @click="adjustRoleScale(1)"
+                      :disabled="roleScaleAdjust >= textScaleMax"
+                      aria-label="Increase designation size"
+                    >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M12 5v14" />
+                        <path d="M5 12h14" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
                 <p class="hidden lg:block text-xs text-slate-500">Press Shift+Enter for a new line.</p>
                 <div class="relative">
                   <textarea
