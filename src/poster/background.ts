@@ -16,7 +16,7 @@ const NORMALIZE_STD = [0.229, 0.224, 0.225];
 const HQ_IMAGE_WIDTH = 1024;
 const HQ_IMAGE_HEIGHT = 1024;
 const HQ_MODEL_PATH =
-  "https://huggingface.co/briaai/RMBG-1.4/resolve/main/onnx/model_quantized.onnx";
+  "https://r2-cf.tejascorp.com.np/rmbg-1.4/model_quantized.onnx";
 const HQ_NORMALIZE_MEAN = [0.5, 0.5, 0.5];
 const HQ_NORMALIZE_STD = [1, 1, 1];
 
@@ -201,13 +201,22 @@ const resizeMaskToImage = (
 const getMaskDimensions = (tensor: ort.Tensor) => {
   const dims = tensor.dims ?? [];
   if (dims.length === 4) {
-    return { height: dims[2] ?? HQ_IMAGE_HEIGHT, width: dims[3] ?? HQ_IMAGE_WIDTH };
+    return {
+      height: dims[2] ?? HQ_IMAGE_HEIGHT,
+      width: dims[3] ?? HQ_IMAGE_WIDTH,
+    };
   }
   if (dims.length === 3) {
-    return { height: dims[1] ?? HQ_IMAGE_HEIGHT, width: dims[2] ?? HQ_IMAGE_WIDTH };
+    return {
+      height: dims[1] ?? HQ_IMAGE_HEIGHT,
+      width: dims[2] ?? HQ_IMAGE_WIDTH,
+    };
   }
   if (dims.length === 2) {
-    return { height: dims[0] ?? HQ_IMAGE_HEIGHT, width: dims[1] ?? HQ_IMAGE_WIDTH };
+    return {
+      height: dims[0] ?? HQ_IMAGE_HEIGHT,
+      width: dims[1] ?? HQ_IMAGE_WIDTH,
+    };
   }
   return { height: HQ_IMAGE_HEIGHT, width: HQ_IMAGE_WIDTH };
 };

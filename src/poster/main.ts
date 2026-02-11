@@ -2,8 +2,8 @@ import { getAlpine, startAlpine } from "@/alpine";
 import { enforcePosterOnlyHosts } from "@/hostRedirect";
 
 import {
-  removeBackground as removeBackgroundImage,
   type BackgroundRemovalQuality,
+  removeBackground as removeBackgroundImage,
 } from "./background";
 import { computeContainedRect, generatePoster } from "./canvas";
 import {
@@ -53,6 +53,7 @@ Alpine.data("posterBuilder", () => {
     removeBgBusy: false,
     removeBgQualityUsed: null as BackgroundRemovalQuality | null,
     removeBgMessage: "",
+    removeBgQuality: "standard" as BackgroundRemovalQuality,
 
     // Export
     exportBusy: false,
@@ -299,6 +300,7 @@ Alpine.data("posterBuilder", () => {
       this.photoSrc = source;
       this.hasPhoto = true;
       this.removeBgQualityUsed = null;
+      this.removeBgQuality = "standard";
       this.removeBgBusy = false;
       this.removeBgMessage = "";
 
@@ -327,6 +329,7 @@ Alpine.data("posterBuilder", () => {
       this.photoSrc = "";
       this.hasPhoto = false;
       this.removeBgQualityUsed = null;
+      this.removeBgQuality = "standard";
       this.removeBgBusy = false;
       this.removeBgMessage = "";
       this.offsetX = 0;
@@ -474,9 +477,7 @@ Alpine.data("posterBuilder", () => {
       const isHighQuality = quality === "hq";
 
       this.removeBgBusy = true;
-      this.removeBgMessage = isHighQuality
-        ? "Downloading HD model..."
-        : "";
+      this.removeBgMessage = isHighQuality ? "Downloading HD model..." : "";
 
       await new Promise<void>((resolve) => {
         window.setTimeout(() => resolve(), 0);
