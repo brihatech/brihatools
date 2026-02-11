@@ -111,8 +111,8 @@ export const FRAMES: FrameConfig[] = [
     hasOverlay: true,
     overlaySrc: "/frames/frame_binod_1_overlay.png",
     nameText: {
-      xPct: 52,
-      yPct: 83,
+      xPct: 52.15,
+      yPct: 85.18,
       color: "#ffffff",
       fontFamily: "Yatra",
       fontSizePx: 44,
@@ -121,8 +121,8 @@ export const FRAMES: FrameConfig[] = [
       backgroundColor: "transparent",
     },
     roleText: {
-      xPct: 52,
-      yPct: 89,
+      xPct: 52.15,
+      yPct: 92.21,
       color: "#ffffff",
       fontFamily: "Vespre",
       fontSizePx: 28,
