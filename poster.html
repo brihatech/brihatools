@@ -267,7 +267,7 @@
                 id="scaleRange"
                 type="range"
                 min="0.4"
-                max="2.5"
+                max="4"
                 step="0.05"
                 x-model.number="scale"
                 x-ref="scaleRange"
@@ -303,7 +303,7 @@
                 class="cursor-pointer"
                 role="button"
                 aria-label="Increase scale"
-                @click="scale = Math.min(2.5, +(scale + 0.05).toFixed(2))"
+                @click="scale = Math.min(4, +(scale + 0.05).toFixed(2))"
               >
                 <path d="M17 17L21 21" />
                 <path d="M19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19C15.4183 19 19 15.4183 19 11Z" />
@@ -572,7 +572,7 @@
                               @change="setDesignationFontSize(index, $event)"
                             />
                             <span
-                              class="whitespace-nowrap text-[11px] font-medium text-slate-600"
+                              class="hidden whitespace-nowrap text-[11px] font-medium text-slate-600"
                               x-text="Math.round(getDesignationStyle(index).fontSizePx) + 'px'"
                             ></span>
                           </div>
