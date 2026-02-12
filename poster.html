@@ -526,34 +526,81 @@
                 <p class="hidden lg:block text-xs text-slate-500">Add up to 5 designation lines.</p>
                 <div class="flex flex-col gap-2">
                   <template x-for="(line, index) in designationLines" :key="index">
-                    <div class="relative">
-                      <input
-                        :id="`designation-${index}`"
-                        class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
-                        :placeholder="`Designation ${index + 1}`"
-                        autocomplete="off"
-                        type="text"
-                        x-model="designationLines[index]"
-                        @input="onRoleInput($event, index)"
-                        @focus="onRoleFocus($event, index)"
-                        @blur="onRoleBlur()"
-                        @keydown="onRoleKeydown($event)"
-                      />
-                      <div
-                        class="absolute left-0 right-0 top-full z-20 mt-2 rounded-sm border border-slate-200 bg-white p-2 text-sm shadow-lg"
-                        x-show="roleSuggestionsVisible && activeRoleIndex === index"
-                        @mousedown.prevent
-                      >
-                        <template x-for="(s, idx) in roleSuggestions" :key="idx">
-                          <button
-                            type="button"
-                            class="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
-                            :class="idx === roleSuggestionIndex ? 'bg-slate-100' : ''"
-                            @click="pickRoleSuggestion(s)"
-                            @mouseenter="roleSuggestionIndex = idx"
-                            x-text="s"
-                          ></button>
-                        </template>
+                    <div class="relative flex flex-col gap-3 rounded border border-slate-200/70 bg-white/80 p-3 shadow-xs">
+                      <div class="relative">
+                        <input
+                          :id="`designation-${index}`"
+                          class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
+                          :placeholder="`Designation ${index + 1}`"
+                          autocomplete="off"
+                          type="text"
+                          x-model="designationLines[index]"
+                          @input="onRoleInput($event, index)"
+                          @focus="onRoleFocus($event, index)"
+                          @blur="onRoleBlur()"
+                          @keydown="onRoleKeydown($event)"
+                        />
+                        <div
+                          class="absolute left-0 right-0 top-full z-20 mt-2 rounded-sm border border-slate-200 bg-white p-2 text-sm shadow-lg"
+                          x-show="roleSuggestionsVisible && activeRoleIndex === index"
+                          @mousedown.prevent
+                        >
+                          <template x-for="(s, idx) in roleSuggestions" :key="idx">
+                            <button
+                              type="button"
+                              class="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                              :class="idx === roleSuggestionIndex ? 'bg-slate-100' : ''"
+                              @click="pickRoleSuggestion(s)"
+                              @mouseenter="roleSuggestionIndex = idx"
+                              x-text="s"
+                            ></button>
+                          </template>
+                        </div>
+                      </div>
+
+                      <div class="grid grid-cols-1 gap-2 text-[11px] text-slate-500 sm:grid-cols-3">
+                        <label class="flex flex-col gap-1">
+                          <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Font Size</span>
+                          <div class="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="12"
+                              max="96"
+                              step="1"
+                              class="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              :value="getDesignationStyle(index).fontSizePx"
+                              @change="setDesignationFontSize(index, $event)"
+                            />
+                            <span
+                              class="whitespace-nowrap text-[11px] font-medium text-slate-600"
+                              x-text="Math.round(getDesignationStyle(index).fontSizePx) + 'px'"
+                            ></span>
+                          </div>
+                        </label>
+
+                        <label class="flex flex-col gap-1">
+                          <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Text Color</span>
+                          <input
+                            type="color"
+                            class="h-9 w-full cursor-pointer rounded border border-slate-300 bg-white p-1"
+                            :value="getDesignationStyle(index).color"
+                            @input="setDesignationFontColor(index, $event)"
+                          />
+                        </label>
+
+                        <label class="flex flex-col gap-1">
+                          <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Weight</span>
+                          <select
+                            class="w-full rounded border border-slate-300 bg-white px-2 py-2 text-xs text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            :value="getDesignationStyle(index).fontWeight"
+                            @change="setDesignationFontWeight(index, $event)"
+                          >
+                            <option value="400">Regular</option>
+                            <option value="500">Medium</option>
+                            <option value="600">Semi Bold</option>
+                            <option value="700">Bold</option>
+                          </select>
+                        </label>
                       </div>
                     </div>
                   </template>

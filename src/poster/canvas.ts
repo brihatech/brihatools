@@ -140,12 +140,12 @@ export type PosterConfig = {
   frameImage: HTMLImageElement;
   photoImage?: HTMLImageElement;
   nameText: HTMLElement;
-  roleText: HTMLElement;
   fullName: string;
   designations: {
     text: string;
     offsetX: number;
     offsetY: number;
+    element: HTMLElement;
   }[];
   nameBaseXPct: number;
   nameBaseYPct: number;
@@ -170,7 +170,6 @@ export async function generatePoster(config: PosterConfig) {
     frameImage,
     photoImage,
     nameText,
-    roleText,
     fullName,
     designations,
     nameBaseXPct,
@@ -360,13 +359,12 @@ export async function generatePoster(config: PosterConfig) {
   }
 
   if (designations && designations.length > 0) {
-    const baseRoleStyle = getPillStyle(roleText);
-
     for (const des of designations) {
       const text = des.text.trim();
       if (!text) continue;
 
-      const roleSpec = makePillSpec(text, baseRoleStyle, roleScale);
+      const roleStyle = getPillStyle(des.element);
+      const roleSpec = makePillSpec(text, roleStyle, roleScale);
       const roleX = (roleBaseXPct / 100) * frameW + des.offsetX * sx;
       const roleY = (roleBaseYPct / 100) * frameH + des.offsetY * sy;
       drawPill(roleSpec, roleX, roleY);
