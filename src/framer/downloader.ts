@@ -60,7 +60,7 @@ export const handleDownload = async (
     {
       frame: frameBitmap,
       photos: photosData,
-      settings: state.settings,
+      settings: JSON.parse(JSON.stringify(state.settings)),
       exportScale: getExportScale(state.exportQuality),
     },
     transferables,
