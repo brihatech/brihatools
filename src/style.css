@@ -204,6 +204,22 @@
   font-size: var(--frame-font-size, 1px);
 }
 
+.designation-primary {
+  font-weight: 600;
+  font-size: 1.05em;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  white-space: pre-line;
+}
+
+.designation-secondary {
+  margin-top: 0.08em;
+  font-size: 0.9em;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  white-space: pre-line;
+}
+
 .photo-processing-wrap {
   position: absolute;
   inset: 0;

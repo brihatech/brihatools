@@ -18,6 +18,7 @@ const TRANSLITERATE_DEBOUNCE_MS = 180;
 const TEXT_SCALE_MIN = 0.8;
 const TEXT_SCALE_MAX = 1.2;
 const TEXT_SCALE_STEP = 0.05;
+const MAX_DESIGNATIONS = 5;
 
 enforcePosterOnlyHosts();
 
@@ -64,11 +65,14 @@ Alpine.data("posterBuilder", () => {
 
     // Text
     fullName: "",
-    designation: "",
+    designationLines: [""],
+    activeRoleIndex: 0,
+    activeRoleInput: null as HTMLInputElement | null,
     nameScaleAdjust: 1,
     roleScaleAdjust: 1,
     textScaleMin: TEXT_SCALE_MIN,
     textScaleMax: TEXT_SCALE_MAX,
+    maxDesignations: MAX_DESIGNATIONS,
     nameOffsetX: 0,
     nameOffsetY: 0,
     roleOffsetX: 0,
@@ -136,12 +140,30 @@ Alpine.data("posterBuilder", () => {
         `color: ${roleText.color}`,
         `font-family: ${roleText.fontFamily}`,
         `font-size: calc(${roleText.fontSizePx} * 1em)`,
-        "line-height: 1.1",
         `font-weight: ${roleText.fontWeight}`,
         `background-color: ${roleText.backgroundColor}`,
         "transform-origin: left top",
         `transform: translate(${this.roleOffsetX}px, ${this.roleOffsetY}px) scale(${roleText.scale * this.roleScaleAdjust})`,
       ].join("; ");
+    },
+
+    get designationPrimary() {
+      return this.designationLines[0]?.trim() ?? "";
+    },
+
+    get designationSecondary() {
+      return this.designationLines
+        .slice(1)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .join("\n");
+    },
+
+    get designationText() {
+      const parts = [this.designationPrimary, this.designationSecondary]
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0);
+      return parts.join("\n");
     },
 
     clampTextScale(value: number) {
@@ -159,6 +181,12 @@ Alpine.data("posterBuilder", () => {
       this.roleScaleAdjust = this.clampTextScale(
         this.roleScaleAdjust + direction * TEXT_SCALE_STEP,
       );
+    },
+
+    addDesignation() {
+      if (this.designationLines.length >= MAX_DESIGNATIONS) return;
+      this.designationLines.push("");
+      this.activeRoleIndex = this.designationLines.length - 1;
     },
 
     saveActiveTextOffsets() {
@@ -573,7 +601,8 @@ Alpine.data("posterBuilder", () => {
           nameText,
           roleText,
           fullName: this.fullName,
-          designation: this.designation,
+          designationPrimary: this.designationPrimary,
+          designationSecondary: this.designationSecondary,
           nameBaseXPct: this.activeFrameConfig.nameText.xPct,
           nameBaseYPct: this.activeFrameConfig.nameText.yPct,
           roleBaseXPct: this.activeFrameConfig.roleText.xPct,
@@ -680,7 +709,7 @@ Alpine.data("posterBuilder", () => {
       const input =
         kind === "name"
           ? this.ref<HTMLInputElement>("fullNameInput")
-          : this.ref<HTMLTextAreaElement>("roleInput");
+          : this.activeRoleInput;
       if (!input) return;
 
       if (kind === "name") {
@@ -706,7 +735,7 @@ Alpine.data("posterBuilder", () => {
       const input =
         kind === "name"
           ? this.ref<HTMLInputElement>("fullNameInput")
-          : this.ref<HTMLTextAreaElement>("roleInput");
+          : this.activeRoleInput;
       if (!input) return;
 
       const { before, after } = splitByCursor(input);
@@ -722,7 +751,10 @@ Alpine.data("posterBuilder", () => {
         suppressNextNameSuggestions = true;
         this.nameSuggestionsVisible = false;
       } else {
-        this.designation = nextValue;
+        const index = this.activeRoleIndex;
+        if (index >= 0 && index < this.designationLines.length) {
+          this.designationLines[index] = nextValue;
+        }
         suppressNextRoleSuggestions = true;
         this.roleSuggestionsVisible = false;
       }
@@ -742,7 +774,7 @@ Alpine.data("posterBuilder", () => {
       this.scheduleSuggestions("name");
     },
 
-    onRoleInput(event: Event) {
+    onRoleInput(event: Event, index: number) {
       if (suppressNextRoleSuggestions) {
         suppressNextRoleSuggestions = false;
         this.roleSuggestions = [];
@@ -751,8 +783,10 @@ Alpine.data("posterBuilder", () => {
         return;
       }
 
-      const input = event.target as HTMLTextAreaElement;
-      this.designation = input.value;
+      const input = event.target as HTMLInputElement;
+      this.activeRoleInput = input;
+      this.activeRoleIndex = index;
+      this.designationLines[index] = input.value;
       this.scheduleSuggestions("role");
     },
 
@@ -760,7 +794,10 @@ Alpine.data("posterBuilder", () => {
       this.scheduleSuggestions("name");
     },
 
-    onRoleFocus() {
+    onRoleFocus(event: Event, index: number) {
+      const input = event.target as HTMLInputElement;
+      this.activeRoleInput = input;
+      this.activeRoleIndex = index;
       this.scheduleSuggestions("role");
     },
 
@@ -809,20 +846,8 @@ Alpine.data("posterBuilder", () => {
     },
 
     onRoleKeydown(event: KeyboardEvent) {
+      this.activeRoleInput = event.target as HTMLInputElement;
       const isEnter = event.key === "Enter" || event.key === "Return";
-      if (isEnter && event.shiftKey) {
-        const input = event.target as HTMLTextAreaElement;
-        const value = input.value;
-        const start = input.selectionStart ?? value.length;
-        const end = input.selectionEnd ?? value.length;
-        const nextValue = `${value.slice(0, start)}\n${value.slice(end)}`;
-        input.value = nextValue;
-        input.setSelectionRange(start + 1, start + 1);
-        this.designation = nextValue;
-        event.preventDefault();
-        return;
-      }
-
       const isArrowDown = event.key === "ArrowDown";
       const isArrowUp = event.key === "ArrowUp";
       const shouldApply =
@@ -843,10 +868,7 @@ Alpine.data("posterBuilder", () => {
       }
 
       if (!shouldApply) return;
-      if (isEnter && !this.roleSuggestionsVisible) {
-        event.preventDefault();
-        return;
-      }
+      if (isEnter && !this.roleSuggestionsVisible) return;
       if (!this.roleSuggestionsVisible) return;
       const index = this.roleSuggestionIndex;
       const picked =

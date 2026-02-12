@@ -116,11 +116,10 @@
                   Full Name
                 </div>
                 <div
-                  class="pointer-events-auto absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab whitespace-pre-line"
+                  class="pointer-events-auto space-y-2 absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab"
                   id="roleText"
                   x-ref="roleText"
-                  x-show="designation.trim().length"
-                  x-text="designation"
+                  x-show="designationText.trim().length"
                   :style="roleTransformStyle"
                   @pointerdown="onRolePointerDown($event)"
                   @pointermove="onRolePointerMove($event)"
@@ -128,7 +127,12 @@
                   @pointerleave="onRolePointerUp($event)"
                   @pointercancel="onRolePointerUp($event)"
                   >
-                  Designation
+                  <div class="designation-primary" x-text="designationPrimary"></div>
+                  <div
+                    class="designation-secondary"
+                    x-show="designationSecondary.trim().length"
+                    x-text="designationSecondary"
+                  ></div>
                 </div>
               </div>
             </div>
@@ -495,7 +499,7 @@
               </div>
               <div class="flex flex-col gap-1">
                 <div class="hidden lg:flex items-center justify-between gap-3">
-                  <label for="designation" class="text-sm font-medium text-heading">Designation</label>
+                  <label for="designation-0" class="text-sm font-medium text-heading">Designation</label>
                   <div class="flex items-center gap-2 text-xs text-slate-500">
                     <button
                       type="button"
@@ -523,38 +527,48 @@
                     </button>
                   </div>
                 </div>
-                <p class="hidden lg:block text-xs text-slate-500">Press Shift+Enter for a new line.</p>
-                <div class="relative">
-                  <textarea
-                    id="designation"
-                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
-                    placeholder="Designation"
-                    autocomplete="off"
-                    rows="2"
-                    x-model="designation"
-                    @input="onRoleInput($event)"
-                    @focus="onRoleFocus()"
-                    @blur="onRoleBlur()"
-                    @keydown="onRoleKeydown($event)"
-                    x-ref="roleInput"
-                  ></textarea>
-                  <div
-                    id="roleSuggestions"
-                    class="absolute left-0 right-0 top-full z-20 mt-2 rounded-sm border border-slate-200 bg-white p-2 text-sm shadow-lg"
-                    x-show="roleSuggestionsVisible"
-                    @mousedown.prevent
+                <p class="hidden lg:block text-xs text-slate-500">Add up to 5 designation lines.</p>
+                <div class="flex flex-col gap-2">
+                  <template x-for="(line, index) in designationLines" :key="index">
+                    <div class="relative">
+                      <input
+                        :id="`designation-${index}`"
+                        class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
+                        :placeholder="`Designation ${index + 1}`"
+                        autocomplete="off"
+                        type="text"
+                        x-model="designationLines[index]"
+                        @input="onRoleInput($event, index)"
+                        @focus="onRoleFocus($event, index)"
+                        @blur="onRoleBlur()"
+                        @keydown="onRoleKeydown($event)"
+                      />
+                      <div
+                        class="absolute left-0 right-0 top-full z-20 mt-2 rounded-sm border border-slate-200 bg-white p-2 text-sm shadow-lg"
+                        x-show="roleSuggestionsVisible && activeRoleIndex === index"
+                        @mousedown.prevent
+                      >
+                        <template x-for="(s, idx) in roleSuggestions" :key="idx">
+                          <button
+                            type="button"
+                            class="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                            :class="idx === roleSuggestionIndex ? 'bg-slate-100' : ''"
+                            @click="pickRoleSuggestion(s)"
+                            @mouseenter="roleSuggestionIndex = idx"
+                            x-text="s"
+                          ></button>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    @click="addDesignation()"
+                    :disabled="designationLines.length >= maxDesignations"
                   >
-                    <template x-for="(s, idx) in roleSuggestions" :key="idx">
-                      <button
-                        type="button"
-                        class="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
-                        :class="idx === roleSuggestionIndex ? 'bg-slate-100' : ''"
-                        @click="pickRoleSuggestion(s)"
-                        @mouseenter="roleSuggestionIndex = idx"
-                        x-text="s"
-                      ></button>
-                    </template>
-                  </div>
+                    Add Designation
+                  </button>
                 </div>
               </div>
             </div>
