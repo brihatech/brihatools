@@ -205,8 +205,8 @@
 }
 
 .designation-primary {
-  font-weight: 600;
   font-size: 1.05em;
+  font-weight: 600;
   line-height: 1.05;
   letter-spacing: 0.01em;
   white-space: pre-line;
@@ -223,11 +223,11 @@
 .photo-processing-wrap {
   position: absolute;
   inset: 0;
+  z-index: 1;
   overflow: hidden;
+  pointer-events: none;
   opacity: 0;
   transition: opacity 180ms ease;
-  pointer-events: none;
-  z-index: 1;
 }
 
 .photo-processing-wrap.is-active {

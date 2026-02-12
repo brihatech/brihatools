@@ -101,7 +101,7 @@ Alpine.data("photoFramer", () => {
         landscapeCanvas,
         grouped: this.photoManager.groupPhotosByOrientation(),
         pendingCount: this.photoManager.getPendingCount(),
-        anyReady: () => this.photoManager!.anyReady(),
+        anyReady: () => this.photoManager?.anyReady(),
       });
 
       this.portraitMeta = uiState.portrait.meta;
