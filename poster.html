@@ -115,25 +115,21 @@
                 >
                   Full Name
                 </div>
-                <div
-                  class="pointer-events-auto space-y-2 absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab"
-                  id="roleText"
-                  x-ref="roleText"
-                  x-show="designationText.trim().length"
-                  :style="roleTransformStyle"
-                  @pointerdown="onRolePointerDown($event)"
-                  @pointermove="onRolePointerMove($event)"
-                  @pointerup="onRolePointerUp($event)"
-                  @pointerleave="onRolePointerUp($event)"
-                  @pointercancel="onRolePointerUp($event)"
-                  >
-                  <div class="designation-primary" x-text="designationPrimary"></div>
+                
+                <template x-for="(line, index) in designationLines" :key="index">
                   <div
-                    class="designation-secondary"
-                    x-show="designationSecondary.trim().length"
-                    x-text="designationSecondary"
+                    class="pointer-events-auto absolute w-fit select-none touch-none rounded-full px-3 py-1 cursor-grab designation-primary"
+                    :id="`roleText-${index}`"
+                    x-show="line.trim().length"
+                    x-text="line"
+                    :style="getRoleTransformStyle(index)"
+                    @pointerdown="onRolePointerDown($event, index)"
+                    @pointermove="onRolePointerMove($event)"
+                    @pointerup="onRolePointerUp($event)"
+                    @pointerleave="onRolePointerUp($event)"
+                    @pointercancel="onRolePointerUp($event)"
                   ></div>
-                </div>
+                </template>
               </div>
             </div>
           </div>

@@ -26,31 +26,6 @@ export const parsePx = (value: string) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const isTransparentColor = (value: string) => {
-  const normalized = value.replace(/\s+/g, "").toLowerCase();
-  return normalized === "transparent" || normalized.endsWith(",0)");
-};
-
-const mergePillStyles = (base: PillStyle, override: PillStyle) => {
-  return {
-    fontFamily: override.fontFamily || base.fontFamily,
-    fontSizePx: override.fontSizePx || base.fontSizePx,
-    lineHeightPx: override.lineHeightPx || base.lineHeightPx,
-    fontWeight: override.fontWeight || base.fontWeight,
-    letterSpacingPx: override.letterSpacingPx || base.letterSpacingPx,
-    textTransform: override.textTransform || base.textTransform,
-    textColor: override.textColor || base.textColor,
-    backgroundColor: isTransparentColor(override.backgroundColor)
-      ? base.backgroundColor
-      : override.backgroundColor,
-    paddingLeft: override.paddingLeft || base.paddingLeft,
-    paddingRight: override.paddingRight || base.paddingRight,
-    paddingTop: override.paddingTop || base.paddingTop,
-    paddingBottom: override.paddingBottom || base.paddingBottom,
-    borderRadius: override.borderRadius || base.borderRadius,
-  };
-};
-
 const applyTextTransform = (text: string, transform: string) => {
   switch (transform) {
     case "uppercase":
@@ -167,8 +142,11 @@ export type PosterConfig = {
   nameText: HTMLElement;
   roleText: HTMLElement;
   fullName: string;
-  designationPrimary: string;
-  designationSecondary: string;
+  designations: {
+    text: string;
+    offsetX: number;
+    offsetY: number;
+  }[];
   nameBaseXPct: number;
   nameBaseYPct: number;
   roleBaseXPct: number;
@@ -179,8 +157,6 @@ export type PosterConfig = {
   overlaySrc: string;
   nameOffsetX: number;
   nameOffsetY: number;
-  roleOffsetX: number;
-  roleOffsetY: number;
   offsetX: number;
   offsetY: number;
   scale: number;
@@ -196,8 +172,7 @@ export async function generatePoster(config: PosterConfig) {
     nameText,
     roleText,
     fullName,
-    designationPrimary,
-    designationSecondary,
+    designations,
     nameBaseXPct,
     nameBaseYPct,
     roleBaseXPct,
@@ -208,8 +183,6 @@ export async function generatePoster(config: PosterConfig) {
     overlaySrc,
     nameOffsetX,
     nameOffsetY,
-    roleOffsetX,
-    roleOffsetY,
     offsetX,
     offsetY,
     scale,
@@ -291,8 +264,6 @@ export async function generatePoster(config: PosterConfig) {
   const frameH = frameImage.naturalHeight;
 
   const safeName = fullName.trim();
-  const safeRolePrimary = designationPrimary.trim();
-  const safeRoleSecondary = designationSecondary.trim();
 
   const makePillSpec = (text: string, pill: PillStyle, scale: number) => {
     const transformed = applyTextTransform(text, pill.textTransform);
@@ -388,43 +359,17 @@ export async function generatePoster(config: PosterConfig) {
     drawPill(nameSpec, nameX, nameY);
   }
 
-  if (safeRolePrimary || safeRoleSecondary) {
-    const roleX = (roleBaseXPct / 100) * frameW + roleOffsetX * sx;
-    const roleY = (roleBaseYPct / 100) * frameH + roleOffsetY * sy;
+  if (designations && designations.length > 0) {
     const baseRoleStyle = getPillStyle(roleText);
-    const primaryEl = roleText.querySelector(
-      ".designation-primary",
-    ) as HTMLElement | null;
-    const secondaryEl = roleText.querySelector(
-      ".designation-secondary",
-    ) as HTMLElement | null;
-    const primaryStyle = mergePillStyles(
-      baseRoleStyle,
-      primaryEl ? getPillStyle(primaryEl) : baseRoleStyle,
-    );
-    const secondaryStyle = mergePillStyles(
-      baseRoleStyle,
-      secondaryEl ? getPillStyle(secondaryEl) : baseRoleStyle,
-    );
-    const secondaryGap = secondaryEl
-      ? parsePx(getComputedStyle(secondaryEl).marginTop)
-      : 0;
 
-    let nextY = roleY;
-    if (safeRolePrimary) {
-      const roleSpec = makePillSpec(safeRolePrimary, primaryStyle, roleScale);
-      drawPill(roleSpec, roleX, nextY);
-      const gap = secondaryGap * sy;
-      nextY += roleSpec.height + gap;
-    }
+    for (const des of designations) {
+      const text = des.text.trim();
+      if (!text) continue;
 
-    if (safeRoleSecondary) {
-      const roleSpec = makePillSpec(
-        safeRoleSecondary,
-        secondaryStyle,
-        roleScale,
-      );
-      drawPill(roleSpec, roleX, nextY);
+      const roleSpec = makePillSpec(text, baseRoleStyle, roleScale);
+      const roleX = (roleBaseXPct / 100) * frameW + des.offsetX * sx;
+      const roleY = (roleBaseYPct / 100) * frameH + des.offsetY * sy;
+      drawPill(roleSpec, roleX, roleY);
     }
   }
 
