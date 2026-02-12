@@ -64,7 +64,7 @@ const applyTextTransform = (text: string, transform: string) => {
   }
 };
 
-const hasNonAscii = (value: string) => /[^\x00-\x7f]/.test(value);
+const hasNonAscii = (value: string) => /[^\p{ASCII}]/u.test(value);
 
 export const computeContainedRect = (
   containerWidth: number,
@@ -326,6 +326,10 @@ export async function generatePoster(config: PosterConfig) {
     const width = maxTextWidth + padL + padR;
     const height = lineHeight * lines.length + padT + padB;
     const radius = Math.min((pill.borderRadius || height / 2) * sy, height / 2);
+    // DOM renders text centered in the line-height (half-leading on top and bottom).
+    // Canvas textBaseline="top" draws from the top of the em-box.
+    // We need to push the text down by the half-leading.
+    const halfLeading = (lineHeight - fontSize) / 2;
 
     return {
       lines,
@@ -337,6 +341,7 @@ export async function generatePoster(config: PosterConfig) {
       padT,
       letterSpacing: allowLetterSpacing ? letterSpacing : 0,
       lineHeight,
+      halfLeading,
       textColor: pill.textColor,
       backgroundColor: pill.backgroundColor,
     };
@@ -355,7 +360,7 @@ export async function generatePoster(config: PosterConfig) {
     ctx.fill();
     ctx.fillStyle = spec.textColor;
     spec.lines.forEach((line, index) => {
-      const drawY = y + spec.padT + index * spec.lineHeight;
+      const drawY = y + spec.padT + index * spec.lineHeight + spec.halfLeading;
       if (spec.letterSpacing > 0 && line.length > 1) {
         let cursorX = x + spec.padL;
         for (const char of line) {
