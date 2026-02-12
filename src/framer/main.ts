@@ -3,7 +3,7 @@ import { enforcePosterOnlyHosts } from "@/hostRedirect";
 
 import { handleDownload } from "./downloader";
 import { loadFrame } from "./frameLoader";
-import { createPhotoManager } from "./photoLoader";
+import { createPhotoManager, type PhotoManager } from "./photoLoader";
 import { renderPreviews } from "./previewRenderer";
 import {
   createInitialState,
@@ -16,11 +16,10 @@ enforcePosterOnlyHosts();
 const Alpine = getAlpine();
 
 Alpine.data("photoFramer", () => {
-  const state = createInitialState();
-  let renderDebounceTimer: number | null = null;
-
-  const component = {
-    state,
+  return {
+    state: createInitialState(),
+    renderDebounceTimer: null as number | null,
+    photoManager: null as PhotoManager | null,
 
     frameStatus: "No frame selected",
     photoStatus: "No photos selected",
@@ -36,6 +35,18 @@ Alpine.data("photoFramer", () => {
     downloadDisabled: true,
 
     init() {
+      // Initialize photoManager with the reactive state proxy (this.state)
+      // and bind callbacks to the reactive component instance (this)
+      this.photoManager = createPhotoManager(this.state, {
+        onStatus: (text) => {
+          this.photoStatus = text;
+        },
+        onPhotosChanged: () => {
+          resetPreviewIndices(this.state);
+        },
+        requestRender: () => this.requestPreview(),
+      });
+
       this.requestPreview();
     },
 
@@ -43,32 +54,34 @@ Alpine.data("photoFramer", () => {
       const file = (event.target as HTMLInputElement).files?.[0];
       if (!file) {
         this.frameStatus = "No frame selected";
-        state.frame = null;
-        state.frameBitmap = null;
+        this.state.frame = null;
+        this.state.frameBitmap = null;
         this.requestPreview();
         return;
       }
 
-      const name = await loadFrame(file, state);
+      const name = await loadFrame(file, this.state);
       this.frameStatus = name ?? "No frame selected";
       this.requestPreview();
     },
 
     onPhotosChange(event: Event) {
       const files = (event.target as HTMLInputElement).files;
-      photoManager.handleSelection(files);
+      this.photoManager?.handleSelection(files);
     },
 
     cyclePreview(type: PreviewOrientation, delta: number) {
-      state.previewIndex[type] += delta;
+      this.state.previewIndex[type] += delta;
       this.requestPreview();
     },
 
     requestPreview() {
-      if (renderDebounceTimer) {
-        cancelAnimationFrame(renderDebounceTimer);
+      if (this.renderDebounceTimer) {
+        cancelAnimationFrame(this.renderDebounceTimer);
       }
-      renderDebounceTimer = requestAnimationFrame(() => this.drawPreviews());
+      this.renderDebounceTimer = requestAnimationFrame(() =>
+        this.drawPreviews(),
+      );
     },
 
     drawPreviews() {
@@ -80,15 +93,15 @@ Alpine.data("photoFramer", () => {
       const landscapeCanvas = refs?.landscapeCanvas as
         | HTMLCanvasElement
         | undefined;
-      if (!portraitCanvas || !landscapeCanvas) return;
+      if (!portraitCanvas || !landscapeCanvas || !this.photoManager) return;
 
       const uiState = renderPreviews({
-        state,
+        state: this.state,
         portraitCanvas,
         landscapeCanvas,
-        grouped: photoManager.groupPhotosByOrientation(),
-        pendingCount: photoManager.getPendingCount(),
-        anyReady: () => photoManager.anyReady(),
+        grouped: this.photoManager.groupPhotosByOrientation(),
+        pendingCount: this.photoManager.getPendingCount(),
+        anyReady: () => this.photoManager!.anyReady(),
       });
 
       this.portraitMeta = uiState.portrait.meta;
@@ -101,12 +114,14 @@ Alpine.data("photoFramer", () => {
     },
 
     async downloadZip() {
-      await handleDownload(state, photoManager, {
+      if (!this.photoManager) return;
+
+      await handleDownload(this.state, this.photoManager, {
         onStatus: (text) => {
           this.downloadStatus = text;
         },
         onBusyChange: (busy) => {
-          state.isProcessing = busy;
+          this.state.isProcessing = busy;
           this.downloadDisabled = busy || this.downloadDisabled;
         },
       });
@@ -114,18 +129,6 @@ Alpine.data("photoFramer", () => {
       this.requestPreview();
     },
   };
-
-  const photoManager = createPhotoManager(state, {
-    onStatus: (text) => {
-      component.photoStatus = text;
-    },
-    onPhotosChanged: () => {
-      resetPreviewIndices(state);
-    },
-    requestRender: () => component.requestPreview(),
-  });
-
-  return component;
 });
 
 startAlpine();

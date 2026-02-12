@@ -10,6 +10,8 @@ export type PillStyle = {
   fontSizePx: number;
   lineHeightPx: number;
   fontWeight: string;
+  letterSpacingPx: number;
+  textTransform: string;
   textColor: string;
   backgroundColor: string;
   paddingLeft: number;
@@ -23,6 +25,21 @@ export const parsePx = (value: string) => {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const applyTextTransform = (text: string, transform: string) => {
+  switch (transform) {
+    case "uppercase":
+      return text.toUpperCase();
+    case "lowercase":
+      return text.toLowerCase();
+    case "capitalize":
+      return text.replace(/\b\w/g, (char) => char.toUpperCase());
+    default:
+      return text;
+  }
+};
+
+const hasNonAscii = (value: string) => /[^\p{ASCII}]/u.test(value);
 
 export const computeContainedRect = (
   containerWidth: number,
@@ -61,6 +78,8 @@ export const getPillStyle = (element: HTMLElement): PillStyle => {
     fontSizePx,
     lineHeightPx: resolvedLineHeight,
     fontWeight: style.fontWeight || "600",
+    letterSpacingPx: parsePx(style.letterSpacing),
+    textTransform: style.textTransform || "none",
     textColor: style.color || "#0f172a",
     backgroundColor: style.backgroundColor || "rgba(255,255,255,0.8)",
     paddingLeft: parsePx(style.paddingLeft),
@@ -123,7 +142,11 @@ export type PosterConfig = {
   nameText: HTMLElement;
   roleText: HTMLElement;
   fullName: string;
-  designation: string;
+  designations: {
+    text: string;
+    offsetX: number;
+    offsetY: number;
+  }[];
   nameBaseXPct: number;
   nameBaseYPct: number;
   roleBaseXPct: number;
@@ -134,8 +157,6 @@ export type PosterConfig = {
   overlaySrc: string;
   nameOffsetX: number;
   nameOffsetY: number;
-  roleOffsetX: number;
-  roleOffsetY: number;
   offsetX: number;
   offsetY: number;
   scale: number;
@@ -151,7 +172,7 @@ export async function generatePoster(config: PosterConfig) {
     nameText,
     roleText,
     fullName,
-    designation,
+    designations,
     nameBaseXPct,
     nameBaseYPct,
     roleBaseXPct,
@@ -162,8 +183,6 @@ export async function generatePoster(config: PosterConfig) {
     overlaySrc,
     nameOffsetX,
     nameOffsetY,
-    roleOffsetX,
-    roleOffsetY,
     offsetX,
     offsetY,
     scale,
@@ -245,28 +264,43 @@ export async function generatePoster(config: PosterConfig) {
   const frameH = frameImage.naturalHeight;
 
   const safeName = fullName.trim();
-  const safeRole = designation.trim();
 
   const makePillSpec = (text: string, pill: PillStyle, scale: number) => {
-    const lines = text.split(/\r?\n/).map((line) => line.toUpperCase());
+    const transformed = applyTextTransform(text, pill.textTransform);
+    const lines = transformed.split(/\r?\n/);
     const fontSize = pill.fontSizePx * sy * scale;
     const lineHeight = pill.lineHeightPx * sy * scale;
     const padL = pill.paddingLeft * sx * scale;
     const padR = pill.paddingRight * sx * scale;
     const padT = pill.paddingTop * sy * scale;
     const padB = pill.paddingBottom * sy * scale;
+    const letterSpacing = pill.letterSpacingPx * sx * scale;
+    const allowLetterSpacing = letterSpacing > 0 && !lines.some(hasNonAscii);
 
     ctx.font = `${pill.fontWeight} ${fontSize}px ${pill.fontFamily}`;
     ctx.textBaseline = "top";
     let maxTextWidth = 0;
     for (const line of lines) {
-      const metrics = ctx.measureText(line);
-      maxTextWidth = Math.max(maxTextWidth, metrics.width);
+      if (allowLetterSpacing && line.length > 1) {
+        let lineWidth = 0;
+        for (const char of line) {
+          lineWidth += ctx.measureText(char).width;
+        }
+        lineWidth += letterSpacing * (line.length - 1);
+        maxTextWidth = Math.max(maxTextWidth, lineWidth);
+      } else {
+        const metrics = ctx.measureText(line);
+        maxTextWidth = Math.max(maxTextWidth, metrics.width);
+      }
     }
 
     const width = maxTextWidth + padL + padR;
     const height = lineHeight * lines.length + padT + padB;
     const radius = Math.min((pill.borderRadius || height / 2) * sy, height / 2);
+    // DOM renders text centered in the line-height (half-leading on top and bottom).
+    // Canvas textBaseline="top" draws from the top of the em-box.
+    // We need to push the text down by the half-leading.
+    const halfLeading = (lineHeight - fontSize) / 2;
 
     return {
       lines,
@@ -276,7 +310,9 @@ export async function generatePoster(config: PosterConfig) {
       radius,
       padL,
       padT,
+      letterSpacing: allowLetterSpacing ? letterSpacing : 0,
       lineHeight,
+      halfLeading,
       textColor: pill.textColor,
       backgroundColor: pill.backgroundColor,
     };
@@ -295,11 +331,16 @@ export async function generatePoster(config: PosterConfig) {
     ctx.fill();
     ctx.fillStyle = spec.textColor;
     spec.lines.forEach((line, index) => {
-      ctx.fillText(
-        line,
-        x + spec.padL,
-        y + spec.padT + index * spec.lineHeight,
-      );
+      const drawY = y + spec.padT + index * spec.lineHeight + spec.halfLeading;
+      if (spec.letterSpacing > 0 && line.length > 1) {
+        let cursorX = x + spec.padL;
+        for (const char of line) {
+          ctx.fillText(char, cursorX, drawY);
+          cursorX += ctx.measureText(char).width + spec.letterSpacing;
+        }
+      } else {
+        ctx.fillText(line, x + spec.padL, drawY);
+      }
     });
     ctx.restore();
   };
@@ -318,11 +359,18 @@ export async function generatePoster(config: PosterConfig) {
     drawPill(nameSpec, nameX, nameY);
   }
 
-  if (safeRole) {
-    const roleSpec = makePillSpec(safeRole, getPillStyle(roleText), roleScale);
-    const roleX = (roleBaseXPct / 100) * frameW + roleOffsetX * sx;
-    const roleY = (roleBaseYPct / 100) * frameH + roleOffsetY * sy;
-    drawPill(roleSpec, roleX, roleY);
+  if (designations && designations.length > 0) {
+    const baseRoleStyle = getPillStyle(roleText);
+
+    for (const des of designations) {
+      const text = des.text.trim();
+      if (!text) continue;
+
+      const roleSpec = makePillSpec(text, baseRoleStyle, roleScale);
+      const roleX = (roleBaseXPct / 100) * frameW + des.offsetX * sx;
+      const roleY = (roleBaseYPct / 100) * frameH + des.offsetY * sy;
+      drawPill(roleSpec, roleX, roleY);
+    }
   }
 
   await downloadCanvasPng(canvas, "poster.png");

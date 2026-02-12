@@ -18,6 +18,7 @@ const TRANSLITERATE_DEBOUNCE_MS = 180;
 const TEXT_SCALE_MIN = 0.8;
 const TEXT_SCALE_MAX = 1.2;
 const TEXT_SCALE_STEP = 0.05;
+const MAX_DESIGNATIONS = 5;
 
 enforcePosterOnlyHosts();
 
@@ -28,7 +29,11 @@ Alpine.data("posterBuilder", () => {
   let removeBgRunId = 0;
 
   // Drag state (not reactive)
-  let dragTarget: "photo" | "name" | "role" | null = null;
+  let dragTarget:
+    | { type: "photo" }
+    | { type: "name" }
+    | { type: "role"; index: number }
+    | null = null;
   let startX = 0;
   let startY = 0;
 
@@ -64,17 +69,22 @@ Alpine.data("posterBuilder", () => {
 
     // Text
     fullName: "",
-    designation: "",
+    designationLines: [""],
+    // Store offsets for each designation line independently.
+    designationOffsets: [{ x: 0, y: 0 }],
+    activeRoleIndex: 0,
+    activeRoleInput: null as HTMLInputElement | null,
     nameScaleAdjust: 1,
     roleScaleAdjust: 1,
     textScaleMin: TEXT_SCALE_MIN,
     textScaleMax: TEXT_SCALE_MAX,
+    maxDesignations: MAX_DESIGNATIONS,
     nameOffsetX: 0,
     nameOffsetY: 0,
-    roleOffsetX: 0,
-    roleOffsetY: 0,
+    // roleOffsetX/Y removed in favor of designationOffsets array
     nameOffsetsByFrame: {} as Record<string, { x: number; y: number }>,
-    roleOffsetsByFrame: {} as Record<string, { x: number; y: number }>,
+    // Store array of offsets per frame
+    roleOffsetsByFrame: {} as Record<string, { x: number; y: number }[]>,
 
     // Suggestions
     nameSuggestions: [] as string[],
@@ -128,21 +138,23 @@ Alpine.data("posterBuilder", () => {
       ].join("; ");
     },
 
-    get roleTransformStyle() {
+    getRoleTransformStyle(index: number) {
       const { roleText } = this.activeFrameConfig;
+      const offsets = this.designationOffsets[index] || { x: 0, y: 0 };
       return [
         `left: ${roleText.xPct}%`,
         `top: ${roleText.yPct}%`,
         `color: ${roleText.color}`,
         `font-family: ${roleText.fontFamily}`,
         `font-size: calc(${roleText.fontSizePx} * 1em)`,
-        "line-height: 1.1",
         `font-weight: ${roleText.fontWeight}`,
         `background-color: ${roleText.backgroundColor}`,
         "transform-origin: left top",
-        `transform: translate(${this.roleOffsetX}px, ${this.roleOffsetY}px) scale(${roleText.scale * this.roleScaleAdjust})`,
+        `transform: translate(${offsets.x}px, ${offsets.y}px) scale(${roleText.scale * this.roleScaleAdjust})`,
       ].join("; ");
     },
+
+    // designationPrimary/Secondary getters removed as they are no longer relevant for layout
 
     clampTextScale(value: number) {
       const rounded = Number(value.toFixed(2));
@@ -161,6 +173,37 @@ Alpine.data("posterBuilder", () => {
       );
     },
 
+    addDesignation() {
+      if (this.designationLines.length >= MAX_DESIGNATIONS) return;
+
+      this.designationLines.push("");
+      const newIndex = this.designationLines.length - 1;
+      this.activeRoleIndex = newIndex;
+
+      // Calculate center position relative to the frame's role anchor for X
+      const overlay = this.ref<HTMLDivElement>("frameOverlay");
+      let newX = 0;
+      let newY = 0;
+
+      if (overlay) {
+        const rect = overlay.getBoundingClientRect();
+        const { roleText } = this.activeFrameConfig;
+
+        // Target is center (50%) - Anchor (xPct%)
+        if (rect.width > 0 && rect.height > 0) {
+          newX = (rect.width * (50 - roleText.xPct)) / 100;
+        }
+      }
+
+      // Match the Y offset of the main designation (index 0)
+      if (this.designationOffsets.length > 0) {
+        newY = this.designationOffsets[0].y;
+      }
+
+      // Initialize offsets for the new designation
+      this.designationOffsets.push({ x: newX, y: newY });
+    },
+
     saveActiveTextOffsets() {
       const key = this.activeFrame;
       if (!key) return;
@@ -168,21 +211,32 @@ Alpine.data("posterBuilder", () => {
         x: this.nameOffsetX,
         y: this.nameOffsetY,
       };
-      this.roleOffsetsByFrame[key] = {
-        x: this.roleOffsetX,
-        y: this.roleOffsetY,
-      };
+      // Save deep copy of offsets
+      this.roleOffsetsByFrame[key] = this.designationOffsets.map((o) => ({
+        ...o,
+      }));
     },
 
     applyTextOffsetsForFrame(frameSrc: string) {
       const nameOffsets = this.nameOffsetsByFrame[frameSrc];
       this.nameOffsetX = nameOffsets?.x ?? 0;
       this.nameOffsetY = nameOffsets?.y ?? 0;
-      const roleOffsets = this.roleOffsetsByFrame[frameSrc];
-      this.roleOffsetX = roleOffsets?.x ?? 0;
-      this.roleOffsetY = roleOffsets?.y ?? 0;
-    },
 
+      const savedOffsets = this.roleOffsetsByFrame[frameSrc];
+      const currentOffsets = this.designationOffsets;
+
+      // Merge strategy: Use saved offset if available for the line index,
+      // otherwise preserve the current offset (carry forward).
+      this.designationOffsets = this.designationLines.map((_, i) => {
+        if (savedOffsets?.[i]) {
+          return { ...savedOffsets[i] };
+        }
+        // If no saved offset for this index (e.g. new line added since visiting frame),
+        // keep the current position so it doesn't jump to 0,0.
+        // Fallback to 0,0 only if we have no current offset either (shouldn't happen).
+        return currentOffsets[i] ? { ...currentOffsets[i] } : { x: 0, y: 0 };
+      });
+    },
     clampDragDelta(target: HTMLElement, dx: number, dy: number) {
       const frameOverlay = this.ref<HTMLDivElement>("frameOverlay");
       if (!frameOverlay) {
@@ -364,7 +418,7 @@ Alpine.data("posterBuilder", () => {
       if (!this.hasPhoto) return;
       event.preventDefault();
 
-      dragTarget = "photo";
+      dragTarget = { type: "photo" };
       startX = event.clientX;
       startY = event.clientY;
 
@@ -377,7 +431,7 @@ Alpine.data("posterBuilder", () => {
     },
 
     onPhotoPointerMove(event: PointerEvent) {
-      if (dragTarget !== "photo") return;
+      if (!dragTarget || dragTarget.type !== "photo") return;
 
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
@@ -388,7 +442,7 @@ Alpine.data("posterBuilder", () => {
     },
 
     onPhotoPointerUp(event: PointerEvent) {
-      if (dragTarget !== "photo") return;
+      if (!dragTarget || dragTarget.type !== "photo") return;
       dragTarget = null;
       const photoContainer = this.ref<HTMLDivElement>("photoContainer");
       if (photoContainer) {
@@ -403,7 +457,7 @@ Alpine.data("posterBuilder", () => {
     onNamePointerDown(event: PointerEvent) {
       event.preventDefault();
 
-      dragTarget = "name";
+      dragTarget = { type: "name" };
       startX = event.clientX;
       startY = event.clientY;
 
@@ -416,7 +470,7 @@ Alpine.data("posterBuilder", () => {
     },
 
     onNamePointerMove(event: PointerEvent) {
-      if (dragTarget !== "name") return;
+      if (!dragTarget || dragTarget.type !== "name") return;
 
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
@@ -430,7 +484,7 @@ Alpine.data("posterBuilder", () => {
     },
 
     onNamePointerUp(event: PointerEvent) {
-      if (dragTarget !== "name") return;
+      if (!dragTarget || dragTarget.type !== "name") return;
       dragTarget = null;
       const nameText = this.ref<HTMLElement>("nameText");
       if (nameText) {
@@ -443,14 +497,20 @@ Alpine.data("posterBuilder", () => {
       this.saveActiveTextOffsets();
     },
 
-    onRolePointerDown(event: PointerEvent) {
+    onRolePointerDown(event: PointerEvent, index: number) {
       event.preventDefault();
 
-      dragTarget = "role";
+      dragTarget = { type: "role", index };
       startX = event.clientX;
       startY = event.clientY;
 
-      const roleText = this.ref<HTMLElement>("roleText");
+      // We need to target the specific element.
+      // Using ref in loop creates an array of elements or we construct ID?
+      // Best to rely on event.target or construct an ID.
+      // In Alpine x-for, IDs might be tricky if not explicit.
+      // We will assume the element has an ID `roleText-{index}`
+      const roleText = document.getElementById(`roleText-${index}`);
+
       if (roleText) {
         roleText.setPointerCapture(event.pointerId);
         roleText.classList.add("cursor-grabbing");
@@ -459,23 +519,33 @@ Alpine.data("posterBuilder", () => {
     },
 
     onRolePointerMove(event: PointerEvent) {
-      if (dragTarget !== "role") return;
+      if (!dragTarget || dragTarget.type !== "role") return;
 
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
-      const roleText = this.ref<HTMLElement>("roleText");
+      const index = dragTarget.index;
+
+      const roleText = document.getElementById(`roleText-${index}`);
       if (!roleText) return;
+
       const clamped = this.clampDragDelta(roleText, dx, dy);
-      this.roleOffsetX += clamped.dx;
-      this.roleOffsetY += clamped.dy;
+
+      if (this.designationOffsets[index]) {
+        this.designationOffsets[index].x += clamped.dx;
+        this.designationOffsets[index].y += clamped.dy;
+      }
+
       startX = event.clientX;
       startY = event.clientY;
     },
 
     onRolePointerUp(event: PointerEvent) {
-      if (dragTarget !== "role") return;
+      if (!dragTarget || dragTarget.type !== "role") return;
+
+      const index = dragTarget.index;
       dragTarget = null;
-      const roleText = this.ref<HTMLElement>("roleText");
+
+      const roleText = document.getElementById(`roleText-${index}`);
       if (roleText) {
         roleText.classList.remove("cursor-grabbing");
         roleText.classList.add("cursor-grab");
@@ -556,14 +626,29 @@ Alpine.data("posterBuilder", () => {
       const frameImage = this.ref<HTMLImageElement>("frameImage");
       const photoImage = this.ref<HTMLImageElement>("photoImage");
       const nameText = this.ref<HTMLElement>("nameText");
-      const roleText = this.ref<HTMLElement>("roleText");
+      // For export we need a reference role element for style.
+      // We can take the first available role text element or default to config.
+      // Since we loop in template, refs might not be direct.
+      // We'll try to find the first one.
+      const roleText =
+        document.getElementById("roleText-0") ||
+        document.querySelector("[id^='roleText-']");
 
       if (!stage || !frameImage || !nameText || !roleText) {
+        console.error("Missing elements for export");
         return;
       }
 
       this.exportBusy = true;
       this.exportMessage = "";
+
+      const designationsForExport = this.designationLines
+        .map((line, i) => ({
+          text: line,
+          offsetX: this.designationOffsets[i]?.x ?? 0,
+          offsetY: this.designationOffsets[i]?.y ?? 0,
+        }))
+        .filter((d) => d.text.trim().length > 0);
 
       try {
         await generatePoster({
@@ -571,9 +656,9 @@ Alpine.data("posterBuilder", () => {
           frameImage,
           photoImage,
           nameText,
-          roleText,
+          roleText: roleText as HTMLElement,
           fullName: this.fullName,
-          designation: this.designation,
+          designations: designationsForExport,
           nameBaseXPct: this.activeFrameConfig.nameText.xPct,
           nameBaseYPct: this.activeFrameConfig.nameText.yPct,
           roleBaseXPct: this.activeFrameConfig.roleText.xPct,
@@ -586,8 +671,6 @@ Alpine.data("posterBuilder", () => {
           overlaySrc: this.activeFrameConfig.overlaySrc ?? "",
           nameOffsetX: this.nameOffsetX,
           nameOffsetY: this.nameOffsetY,
-          roleOffsetX: this.roleOffsetX,
-          roleOffsetY: this.roleOffsetY,
           offsetX: this.offsetX,
           offsetY: this.offsetY,
           scale: this.scale,
@@ -601,7 +684,6 @@ Alpine.data("posterBuilder", () => {
         this.exportBusy = false;
       }
     },
-
     // ----- Transliteration suggestions -----
 
     async fetchSuggestions(
@@ -680,7 +762,7 @@ Alpine.data("posterBuilder", () => {
       const input =
         kind === "name"
           ? this.ref<HTMLInputElement>("fullNameInput")
-          : this.ref<HTMLTextAreaElement>("roleInput");
+          : this.activeRoleInput;
       if (!input) return;
 
       if (kind === "name") {
@@ -706,7 +788,7 @@ Alpine.data("posterBuilder", () => {
       const input =
         kind === "name"
           ? this.ref<HTMLInputElement>("fullNameInput")
-          : this.ref<HTMLTextAreaElement>("roleInput");
+          : this.activeRoleInput;
       if (!input) return;
 
       const { before, after } = splitByCursor(input);
@@ -722,7 +804,10 @@ Alpine.data("posterBuilder", () => {
         suppressNextNameSuggestions = true;
         this.nameSuggestionsVisible = false;
       } else {
-        this.designation = nextValue;
+        const index = this.activeRoleIndex;
+        if (index >= 0 && index < this.designationLines.length) {
+          this.designationLines[index] = nextValue;
+        }
         suppressNextRoleSuggestions = true;
         this.roleSuggestionsVisible = false;
       }
@@ -742,7 +827,7 @@ Alpine.data("posterBuilder", () => {
       this.scheduleSuggestions("name");
     },
 
-    onRoleInput(event: Event) {
+    onRoleInput(event: Event, index: number) {
       if (suppressNextRoleSuggestions) {
         suppressNextRoleSuggestions = false;
         this.roleSuggestions = [];
@@ -751,8 +836,10 @@ Alpine.data("posterBuilder", () => {
         return;
       }
 
-      const input = event.target as HTMLTextAreaElement;
-      this.designation = input.value;
+      const input = event.target as HTMLInputElement;
+      this.activeRoleInput = input;
+      this.activeRoleIndex = index;
+      this.designationLines[index] = input.value;
       this.scheduleSuggestions("role");
     },
 
@@ -760,7 +847,10 @@ Alpine.data("posterBuilder", () => {
       this.scheduleSuggestions("name");
     },
 
-    onRoleFocus() {
+    onRoleFocus(event: Event, index: number) {
+      const input = event.target as HTMLInputElement;
+      this.activeRoleInput = input;
+      this.activeRoleIndex = index;
       this.scheduleSuggestions("role");
     },
 
@@ -809,20 +899,8 @@ Alpine.data("posterBuilder", () => {
     },
 
     onRoleKeydown(event: KeyboardEvent) {
+      this.activeRoleInput = event.target as HTMLInputElement;
       const isEnter = event.key === "Enter" || event.key === "Return";
-      if (isEnter && event.shiftKey) {
-        const input = event.target as HTMLTextAreaElement;
-        const value = input.value;
-        const start = input.selectionStart ?? value.length;
-        const end = input.selectionEnd ?? value.length;
-        const nextValue = `${value.slice(0, start)}\n${value.slice(end)}`;
-        input.value = nextValue;
-        input.setSelectionRange(start + 1, start + 1);
-        this.designation = nextValue;
-        event.preventDefault();
-        return;
-      }
-
       const isArrowDown = event.key === "ArrowDown";
       const isArrowUp = event.key === "ArrowUp";
       const shouldApply =
@@ -843,10 +921,7 @@ Alpine.data("posterBuilder", () => {
       }
 
       if (!shouldApply) return;
-      if (isEnter && !this.roleSuggestionsVisible) {
-        event.preventDefault();
-        return;
-      }
+      if (isEnter && !this.roleSuggestionsVisible) return;
       if (!this.roleSuggestionsVisible) return;
       const index = this.roleSuggestionIndex;
       const picked =
