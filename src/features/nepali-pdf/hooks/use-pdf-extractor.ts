@@ -132,7 +132,7 @@ export function usePdfExtractor() {
         }
 
         setProcessingText(
-          table.length > 1 ? "Ready to download." : "No data rows found.",
+          table.length > 1 ? "Ready to download" : "No data rows found",
         );
       } catch (err) {
         lastTableRef.current = null;
@@ -170,8 +170,29 @@ export function usePdfExtractor() {
     setExportStatus("Downloaded Excel.");
   }, []);
 
+  const clearPdf = useCallback(() => {
+    setPdfName("");
+    setPdfSizeKb(0);
+    setExportStatus("");
+    setWarning("");
+    setProcessingText("");
+    setTableMeta("");
+    setHeader([]);
+    setRows([]);
+    lastTableRef.current = null;
+    extractRunIdRef.current += 1;
+    setBusy(false);
+
+    // Optional: clear the file input value if strictly needed,
+    // but usually better handled by key-reset or ref in the UI.
+    // For now, we just reset state.
+    const input = document.getElementById("pdfInput") as HTMLInputElement;
+    if (input) input.value = "";
+  }, []);
+
   return {
     busy,
+    clearPdf,
     downloadCsv,
     downloadXlsx,
     exportEnabled,

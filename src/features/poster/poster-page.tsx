@@ -1,11 +1,11 @@
 import {
   Bold,
+  ChevronDown,
   Download,
   Italic,
   Minus,
   Plus,
   PlusCircleIcon,
-  RefreshCw,
   RotateCcw,
   Sparkles,
   Upload,
@@ -197,12 +197,14 @@ export function PosterPage() {
     [pb, translit],
   );
 
+  const hasToolbar = pb.selectedTextId !== null;
+
   return (
-    <main className="flex-1 overflow-auto p-4 sm:p-6">
-      <section className="mx-auto flex max-w-7xl flex-col gap-4 lg:grid lg:grid-cols-[minmax(260px,360px)_minmax(0,1fr)_minmax(220px,360px)] lg:items-start lg:gap-6">
+    <main className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6">
+      <section className="mx-auto flex max-w-7xl flex-col gap-3 lg:grid lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)_minmax(200px,320px)] lg:items-start lg:gap-5">
         {/* Left Panel - Controls */}
-        <div className="order-3 rounded-lg border bg-card p-4 shadow-sm sm:p-6 lg:order-1">
-          <div className="flex flex-col gap-4 lg:gap-6">
+        <div className="order-3 max-w-full overflow-hidden rounded-lg border bg-card p-3 shadow-sm sm:p-4 lg:order-1 lg:p-5">
+          <div className="flex flex-col gap-3 lg:gap-5">
             {/* Header with Reset */}
             <div className="hidden items-center justify-between lg:flex">
               <h2 className="font-medium text-sm">Controls</h2>
@@ -243,7 +245,7 @@ export function PosterPage() {
               {/* Desktop upload area */}
               <div className="group relative mt-2 hidden lg:block">
                 <button
-                  className="relative flex h-40 w-full items-center justify-center overflow-hidden rounded-md border border-border border-dashed bg-muted/50 p-4 text-muted-foreground transition hover:border-primary/50 hover:bg-muted"
+                  className="relative flex h-36 w-full items-center justify-center overflow-hidden rounded-md border border-border border-dashed bg-muted/50 p-4 text-muted-foreground transition hover:border-primary/50 hover:bg-muted"
                   onClick={() => pb.photoUploadRef.current?.click()}
                   type="button"
                 >
@@ -255,8 +257,8 @@ export function PosterPage() {
                     />
                   ) : (
                     <div className="flex flex-col items-center gap-2">
-                      <div className="flex size-12 items-center justify-center rounded-full border bg-background">
-                        <Plus className="size-5 text-muted-foreground" />
+                      <div className="flex size-10 items-center justify-center rounded-full border bg-background">
+                        <Plus className="size-4 text-muted-foreground" />
                       </div>
                       <span className="font-semibold text-xs uppercase tracking-widest">
                         Upload Photo
@@ -270,11 +272,11 @@ export function PosterPage() {
                 {pb.hasPhoto && (
                   <button
                     aria-label="Remove photo"
-                    className="absolute top-3 right-3 rounded-full bg-background/90 p-2 text-foreground opacity-0 shadow-sm transition group-hover:opacity-100"
+                    className="absolute top-2 right-2 rounded-full bg-background/90 p-1.5 text-foreground opacity-0 shadow-sm transition group-hover:opacity-100"
                     onClick={pb.clearPhoto}
                     type="button"
                   >
-                    <X className="size-4" />
+                    <X className="size-3.5" />
                   </button>
                 )}
               </div>
@@ -283,7 +285,7 @@ export function PosterPage() {
             {/* Name + Designation */}
             <div
               className={cn(
-                "flex flex-col gap-4 lg:gap-5",
+                "flex flex-col gap-3 lg:gap-4",
                 !pb.hasPhoto && "hidden lg:flex",
               )}
             >
@@ -313,14 +315,15 @@ export function PosterPage() {
                   />
                   {translit.nameSuggestionsVisible && (
                     <div
-                      className="absolute top-full right-0 left-0 z-20 mt-2 rounded-md border bg-popover p-1 shadow-lg"
+                      className="absolute right-0 bottom-full left-0 z-50 mb-1 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-lg lg:top-full lg:bottom-auto lg:mt-1 lg:mb-0"
                       onMouseDown={(e) => e.preventDefault()}
+                      onPointerDown={(e) => e.preventDefault()}
                       role="listbox"
                     >
                       {translit.nameSuggestions.map((s, idx) => (
                         <button
                           className={cn(
-                            "flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-accent",
+                            "flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm hover:bg-accent lg:py-2",
                             idx === translit.nameSuggestionIndex && "bg-accent",
                           )}
                           key={`name-suggestion-${s}`}
@@ -341,7 +344,7 @@ export function PosterPage() {
               {/* Designations */}
               <div className="flex flex-col gap-1.5">
                 <Label className="hidden lg:block">Designation</Label>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                   {pb.designationLines.map((line, index) => (
                     <div
                       className="flex flex-col gap-1.5"
@@ -370,14 +373,15 @@ export function PosterPage() {
                         {translit.roleSuggestionsVisible &&
                           pb.activeRoleIndex === index && (
                             <div
-                              className="absolute top-full right-0 left-0 z-20 mt-2 rounded-md border bg-popover p-1 shadow-lg"
+                              className="absolute right-0 bottom-full left-0 z-50 mb-1 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-lg lg:top-full lg:bottom-auto lg:mt-1 lg:mb-0"
                               onMouseDown={(e) => e.preventDefault()}
+                              onPointerDown={(e) => e.preventDefault()}
                               role="listbox"
                             >
                               {translit.roleSuggestions.map((s, idx) => (
                                 <button
                                   className={cn(
-                                    "flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-accent",
+                                    "flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm hover:bg-accent lg:py-2",
                                     idx === translit.roleSuggestionIndex &&
                                       "bg-accent",
                                   )}
@@ -433,21 +437,26 @@ export function PosterPage() {
           </div>
         </div>
 
-        {/* Center - Stage + Floating Toolbar */}
+        {/* Center - Stage + Toolbar */}
         <div className="order-2 flex flex-col items-center gap-2 lg:order-2">
-          {/* Floating toolbar */}
-          {pb.selectedTextId === "photo" ? (
-            <PhotoToolbar onClose={() => pb.setSelectedTextId(null)} pb={pb} />
-          ) : (
-            <TextToolbar
-              onClose={() => pb.setSelectedTextId(null)}
-              pb={pb}
-              selectedTextId={pb.selectedTextId}
-            />
-          )}
+          {/* Desktop toolbar - above stage */}
+          <div className="hidden lg:block">
+            {pb.selectedTextId === "photo" ? (
+              <PhotoToolbar
+                onClose={() => pb.setSelectedTextId(null)}
+                pb={pb}
+              />
+            ) : (
+              <TextToolbar
+                onClose={() => pb.setSelectedTextId(null)}
+                pb={pb}
+                selectedTextId={pb.selectedTextId}
+              />
+            )}
+          </div>
 
           <div
-            className="relative aspect-square w-full max-w-160 overflow-hidden rounded-md border shadow-lg"
+            className="relative aspect-square w-full max-w-full overflow-hidden rounded-md border shadow-lg lg:max-w-160"
             id="stage"
             onPointerDown={(e) => {
               if (e.target === e.currentTarget) pb.setSelectedTextId(null);
@@ -573,14 +582,32 @@ export function PosterPage() {
               </div>
             </div>
           </div>
+
+          {/* Mobile toolbar - sticky below stage */}
+          {hasToolbar && (
+            <div className="sticky bottom-2 z-40 lg:hidden">
+              {pb.selectedTextId === "photo" ? (
+                <PhotoToolbar
+                  onClose={() => pb.setSelectedTextId(null)}
+                  pb={pb}
+                />
+              ) : (
+                <TextToolbar
+                  onClose={() => pb.setSelectedTextId(null)}
+                  pb={pb}
+                  selectedTextId={pb.selectedTextId}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Panel - Frames */}
-        <div className="order-1 rounded-lg border bg-card p-4 shadow-sm sm:p-6 lg:order-3">
-          <h2 className="mb-3 hidden font-medium text-sm lg:block">
+        <div className="order-1 max-w-full overflow-hidden rounded-lg border bg-card p-3 shadow-sm sm:p-4 lg:order-3 lg:p-5">
+          <h2 className="mb-2 hidden font-medium text-sm lg:block">
             Available Frames
           </h2>
-          <div className="flex gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible">
+          <div className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-3 lg:gap-2 lg:overflow-visible">
             {pb.filteredFrames.map((frame) => (
               <button
                 className={cn(
@@ -595,7 +622,7 @@ export function PosterPage() {
               >
                 <img
                   alt="Frame preview"
-                  className="h-24 w-full object-cover"
+                  className="h-20 w-full object-cover sm:h-24"
                   src={frame.thumbSrc || frame.src}
                 />
               </button>
@@ -630,36 +657,68 @@ const COLOR_SWATCHES = [
 type PbReturn = ReturnType<typeof usePosterBuilder>;
 
 function PhotoToolbar({ pb, onClose }: { pb: PbReturn; onClose: () => void }) {
+  const [qualityOpen, setQualityOpen] = useState(false);
   const scalePercent = Math.round(pb.scale * 100);
+  const qualityLabel = pb.removeBgQuality === "hq" ? "HD Quality" : "Standard";
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border bg-card px-2 py-1.5 shadow-md">
-      {/* BG Removal */}
-      <Button
-        className="h-7 gap-1.5 px-2.5 text-xs"
-        disabled={!pb.hasPhoto || pb.removeBgBusy}
-        onClick={() => pb.removeBackground(pb.removeBgQuality)}
-        size="sm"
-        variant="ghost"
-      >
-        <Sparkles className="size-3.5" />
-        {pb.removeBgBusy ? "Removing..." : "BG Removal"}
-      </Button>
-
-      <div className="mx-0.5 h-5 w-px bg-border" />
-
-      {/* Change Model */}
-      <Button
-        className="h-7 gap-1.5 px-2.5 text-xs"
-        onClick={() =>
-          pb.setRemoveBgQuality(pb.removeBgQuality === "hq" ? "standard" : "hq")
-        }
-        size="sm"
-        variant="ghost"
-      >
-        <RefreshCw className="size-3.5" />
-        {pb.removeBgQuality === "hq" ? "HD Model" : "Switch Model"}
-      </Button>
+    <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-card px-2 py-1.5 shadow-md">
+      {/* BG Removal with quality picker */}
+      <div className="flex items-center">
+        <Button
+          className="h-7 gap-1.5 rounded-r-none pl-2.5 text-xs"
+          disabled={!pb.hasPhoto || pb.removeBgBusy}
+          onClick={() => pb.removeBackground(pb.removeBgQuality)}
+          size="sm"
+          variant="ghost"
+        >
+          <Sparkles className="size-3.5" />
+          {pb.removeBgBusy ? "Removing..." : "Remove BG"}
+        </Button>
+        <Popover onOpenChange={setQualityOpen} open={qualityOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              className="h-7"
+              disabled={pb.removeBgBusy}
+              size="sm"
+              variant="ghost"
+            >
+              <ChevronDown className="size-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-36 p-1" side="bottom">
+            <button
+              className={cn(
+                "flex w-full items-center rounded-sm px-3 py-2 text-left text-xs hover:bg-accent",
+                pb.removeBgQuality === "standard" && "bg-accent",
+              )}
+              onClick={() => {
+                pb.setRemoveBgQuality("standard");
+                setQualityOpen(false);
+              }}
+              type="button"
+            >
+              Standard
+            </button>
+            <button
+              className={cn(
+                "flex w-full items-center rounded-sm px-3 py-2 text-left text-xs hover:bg-accent",
+                pb.removeBgQuality === "hq" && "bg-accent",
+              )}
+              onClick={() => {
+                pb.setRemoveBgQuality("hq");
+                setQualityOpen(false);
+              }}
+              type="button"
+            >
+              HD Quality
+            </button>
+          </PopoverContent>
+        </Popover>
+        <span className="ml-1 hidden text-muted-foreground text-xs sm:inline">
+          {qualityLabel}
+        </span>
+      </div>
 
       <div className="mx-0.5 h-5 w-px bg-border" />
 
@@ -674,7 +733,7 @@ function PhotoToolbar({ pb, onClose }: { pb: PbReturn; onClose: () => void }) {
       >
         <Minus className="size-3.5" />
       </Button>
-      <span className="min-w-9 text-center font-medium text-xs tabular-nums">
+      <span className="min-w-8 text-center font-medium text-xs tabular-nums">
         {scalePercent}%
       </span>
       <Button
@@ -697,7 +756,7 @@ function PhotoToolbar({ pb, onClose }: { pb: PbReturn; onClose: () => void }) {
 
       {/* Status message */}
       {pb.removeBgMessage && (
-        <span className="ml-1 text-muted-foreground text-xs">
+        <span className="ml-1 basis-full text-muted-foreground text-xs sm:basis-auto">
           {pb.removeBgMessage}
         </span>
       )}
@@ -768,7 +827,7 @@ function TextToolbar({
   };
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border bg-card px-2 py-1.5 shadow-md">
+    <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-card px-2 py-1.5 shadow-md">
       {/* Color */}
       <Popover onOpenChange={setColorOpen} open={colorOpen}>
         <PopoverTrigger asChild>
@@ -786,7 +845,7 @@ function TextToolbar({
             </span>
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-3" side="bottom">
+        <PopoverContent className="w-auto p-3" side="top">
           <div className="flex flex-col gap-2">
             <div className="grid grid-cols-8 gap-1">
               {COLOR_SWATCHES.map((c) => (
@@ -856,7 +915,7 @@ function TextToolbar({
       >
         <Minus className="size-3.5" />
       </Button>
-      <span className="min-w-9 text-center font-medium text-xs tabular-nums">
+      <span className="min-w-8 text-center font-medium text-xs tabular-nums">
         {Math.round(currentScale * 100)}%
       </span>
       <Button
@@ -870,7 +929,7 @@ function TextToolbar({
 
       <div className="mx-0.5 h-5 w-px bg-border" />
 
-      {/* Bold / Italic / Underline */}
+      {/* Bold / Italic */}
       <Button
         className={cn("size-7", currentStyle.bold && "bg-accent")}
         onClick={() => handleStyleToggle("bold")}
