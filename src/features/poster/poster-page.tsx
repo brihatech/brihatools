@@ -11,16 +11,18 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { usePinch } from "@/hooks/use-pinch";
 import { cn } from "@/lib/utils";
 
 import { useDrag } from "./hooks/use-drag";
@@ -34,6 +36,19 @@ import { useTransliteration } from "./hooks/use-transliteration";
 export function PosterPage() {
   const pb = usePosterBuilder();
   const translit = useTransliteration();
+
+  const roleInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const prevDesignationCount = useRef(pb.designationLines.length);
+
+  useEffect(() => {
+    if (pb.designationLines.length > prevDesignationCount.current) {
+      const newIndex = pb.designationLines.length - 1;
+      requestAnimationFrame(() => {
+        roleInputRefs.current[newIndex]?.focus();
+      });
+    }
+    prevDesignationCount.current = pb.designationLines.length;
+  }, [pb.designationLines.length]);
 
   const dragCallbacks = useMemo(
     () => ({
@@ -106,13 +121,13 @@ export function PosterPage() {
         idx >= 0 ? translit.nameSuggestions[idx] : translit.nameSuggestions[0];
       if (!picked) return;
       event.preventDefault();
-      const newVal = translit.applySuggestion(
+      const result = translit.applySuggestion(
         "name",
         picked,
         pb.fullNameInputRef.current,
         isSpace ? " " : "",
       );
-      if (newVal !== null) pb.setFullName(newVal);
+      if (result !== null) pb.setFullName(result.value);
     },
     [pb, translit],
   );
@@ -152,16 +167,16 @@ export function PosterPage() {
         idx >= 0 ? translit.roleSuggestions[idx] : translit.roleSuggestions[0];
       if (!picked) return;
       event.preventDefault();
-      const newVal = translit.applySuggestion(
+      const result = translit.applySuggestion(
         "role",
         picked,
         pb.activeRoleInputRef.current,
         isSpace ? " " : "",
       );
-      if (newVal !== null) {
+      if (result !== null) {
         const roleIdx = pb.activeRoleIndex;
         pb.setDesignationLines((prev) =>
-          prev.map((line, i) => (i === roleIdx ? newVal : line)),
+          prev.map((line, i) => (i === roleIdx ? result.value : line)),
         );
       }
     },
@@ -170,28 +185,46 @@ export function PosterPage() {
 
   const pickNameSuggestion = useCallback(
     (value: string) => {
-      const newVal = translit.applySuggestion(
+      const result = translit.applySuggestion(
         "name",
         value,
         pb.fullNameInputRef.current,
+        " ",
       );
-      if (newVal !== null) pb.setFullName(newVal);
+      if (result !== null) {
+        pb.setFullName(result.value);
+        requestAnimationFrame(() => {
+          pb.fullNameInputRef.current?.focus();
+          pb.fullNameInputRef.current?.setSelectionRange(
+            result.cursor,
+            result.cursor,
+          );
+        });
+      }
     },
     [pb, translit],
   );
 
   const pickRoleSuggestion = useCallback(
     (value: string) => {
-      const newVal = translit.applySuggestion(
+      const result = translit.applySuggestion(
         "role",
         value,
         pb.activeRoleInputRef.current,
+        " ",
       );
-      if (newVal !== null) {
+      if (result !== null) {
         const roleIdx = pb.activeRoleIndex;
         pb.setDesignationLines((prev) =>
-          prev.map((line, i) => (i === roleIdx ? newVal : line)),
+          prev.map((line, i) => (i === roleIdx ? result.value : line)),
         );
+        requestAnimationFrame(() => {
+          pb.activeRoleInputRef.current?.focus();
+          pb.activeRoleInputRef.current?.setSelectionRange(
+            result.cursor,
+            result.cursor,
+          );
+        });
       }
     },
     [pb, translit],
@@ -199,11 +232,42 @@ export function PosterPage() {
 
   const hasToolbar = pb.selectedTextId !== null;
 
+  const isPhotoSelected = pb.selectedTextId === "photo";
+  const isNameSelected = pb.selectedTextId === "name";
+  const selectedRoleIndex =
+    typeof pb.selectedTextId === "number" ? pb.selectedTextId : -1;
+
+  const currentScaleValue = isPhotoSelected
+    ? pb.scale
+    : isNameSelected
+      ? pb.nameScaleAdjust
+      : selectedRoleIndex >= 0
+        ? (pb.roleScaleAdjusts[selectedRoleIndex] ?? 1)
+        : 1;
+
+  const handleScale = useCallback(
+    (v: number) => {
+      const safeV = Math.max(0.1, Math.min(5, v));
+      if (isPhotoSelected) pb.setScale(Number(safeV.toFixed(2)));
+      else if (isNameSelected) pb.setNameScaleAdjust(Number(safeV.toFixed(2)));
+      else if (selectedRoleIndex >= 0) {
+        pb.setRoleScaleAdjusts((prev) =>
+          prev.map((s, i) =>
+            i === selectedRoleIndex ? Number(safeV.toFixed(2)) : s,
+          ),
+        );
+      }
+    },
+    [pb, isPhotoSelected, isNameSelected, selectedRoleIndex],
+  );
+
+  const pinch = usePinch(currentScaleValue, handleScale, !!pb.selectedTextId);
+
   return (
     <main className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6">
       <section className="mx-auto flex max-w-7xl flex-col gap-3 lg:grid lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)_minmax(200px,320px)] lg:items-start lg:gap-5">
         {/* Left Panel - Controls */}
-        <div className="order-3 max-w-full overflow-hidden rounded-lg border bg-card p-3 shadow-sm sm:p-4 lg:order-1 lg:p-5">
+        <div className="order-3 max-w-full rounded-lg border bg-card p-3 shadow-sm sm:p-4 lg:order-1 lg:p-5">
           <div className="flex flex-col gap-3 lg:gap-5">
             {/* Header with Reset */}
             <div className="hidden items-center justify-between lg:flex">
@@ -295,49 +359,74 @@ export function PosterPage() {
                   Full Name
                 </Label>
                 <div className="relative">
-                  <Input
-                    autoComplete="off"
-                    id="fullName"
-                    onBlur={translit.hideNameSuggestions}
-                    onChange={handleNameInput}
-                    onFocus={() => {
-                      pb.setSelectedTextId("name");
-                      translit.scheduleSuggestions(
-                        "name",
-                        pb.fullNameInputRef.current,
-                      );
-                    }}
-                    onKeyDown={handleNameKeydown}
-                    placeholder="Full Name"
-                    ref={pb.fullNameInputRef}
-                    type="text"
-                    value={pb.fullName}
-                  />
-                  {translit.nameSuggestionsVisible && (
-                    <div
-                      className="absolute right-0 bottom-full left-0 z-50 mb-1 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-lg lg:top-full lg:bottom-auto lg:mt-1 lg:mb-0"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onPointerDown={(e) => e.preventDefault()}
-                      role="listbox"
+                  <Popover
+                    onOpenChange={(open) =>
+                      !open && translit.hideNameSuggestions()
+                    }
+                    open={translit.nameSuggestionsVisible}
+                  >
+                    <PopoverAnchor asChild>
+                      <Input
+                        autoComplete="off"
+                        id="fullName"
+                        onBlur={translit.hideNameSuggestions}
+                        onChange={handleNameInput}
+                        onFocus={() => {
+                          pb.setSelectedTextId("name");
+                          translit.scheduleSuggestions(
+                            "name",
+                            pb.fullNameInputRef.current,
+                          );
+                        }}
+                        onKeyDown={handleNameKeydown}
+                        placeholder="Full Name"
+                        ref={pb.fullNameInputRef}
+                        type="text"
+                        value={pb.fullName}
+                      />
+                    </PopoverAnchor>
+                    <PopoverContent
+                      align="start"
+                      className="group z-[100] w-72 min-w-[200px] p-0 lg:w-auto"
+                      onCloseAutoFocus={(e) => e.preventDefault()}
+                      onOpenAutoFocus={(e) => e.preventDefault()}
                     >
-                      {translit.nameSuggestions.map((s, idx) => (
-                        <button
-                          className={cn(
-                            "flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm hover:bg-accent lg:py-2",
-                            idx === translit.nameSuggestionIndex && "bg-accent",
-                          )}
-                          key={`name-suggestion-${s}`}
-                          onClick={() => pickNameSuggestion(s)}
-                          onMouseEnter={() =>
-                            translit.setSuggestionIndex("name", idx)
-                          }
-                          type="button"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                      <div
+                        className="flex max-h-[40vh] flex-col overflow-y-auto p-1"
+                        role="listbox"
+                      >
+                        <div className="flex items-center justify-between px-2 py-1 text-muted-foreground text-xs lg:hidden">
+                          <span>Suggestions</span>
+                          <Button
+                            className="h-auto p-0"
+                            onClick={translit.hideNameSuggestions}
+                            variant="ghost"
+                          >
+                            <X className="size-3" />
+                          </Button>
+                        </div>
+                        <div className="flex flex-col group-data-[side=top]:flex-col-reverse">
+                          {translit.nameSuggestions.map((s, idx) => (
+                            <button
+                              className={cn(
+                                "flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm hover:bg-accent lg:py-2",
+                                idx === translit.nameSuggestionIndex &&
+                                  "bg-accent",
+                              )}
+                              key={`name-suggestion-${s}`}
+                              onClick={() => pickNameSuggestion(s)}
+                              onMouseEnter={() =>
+                                translit.setSuggestionIndex("name", idx)
+                              }
+                              type="button"
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
@@ -351,52 +440,81 @@ export function PosterPage() {
                       key={`designation-${index.toString()}`}
                     >
                       <div className="relative">
-                        <Input
-                          autoComplete="off"
-                          onBlur={translit.hideRoleSuggestions}
-                          onChange={(e) => handleRoleInput(e, index)}
-                          onFocus={(e) => {
-                            pb.activeRoleInputRef.current =
-                              e.target as HTMLInputElement;
-                            pb.setActiveRoleIndex(index);
-                            pb.setSelectedTextId(index);
-                            translit.scheduleSuggestions(
-                              "role",
-                              e.target as HTMLInputElement,
-                            );
-                          }}
-                          onKeyDown={handleRoleKeydown}
-                          placeholder={`Designation ${index + 1}`}
-                          type="text"
-                          value={line}
-                        />
-                        {translit.roleSuggestionsVisible &&
-                          pb.activeRoleIndex === index && (
+                        <Popover
+                          onOpenChange={(open) =>
+                            !open && translit.hideRoleSuggestions()
+                          }
+                          open={
+                            translit.roleSuggestionsVisible &&
+                            pb.activeRoleIndex === index
+                          }
+                        >
+                          <PopoverAnchor asChild>
+                            <Input
+                              autoComplete="off"
+                              onBlur={translit.hideRoleSuggestions}
+                              onChange={(e) => handleRoleInput(e, index)}
+                              onFocus={(e) => {
+                                pb.activeRoleInputRef.current =
+                                  e.target as HTMLInputElement;
+                                pb.setActiveRoleIndex(index);
+                                pb.setSelectedTextId(index);
+                                translit.scheduleSuggestions(
+                                  "role",
+                                  e.target as HTMLInputElement,
+                                );
+                              }}
+                              onKeyDown={handleRoleKeydown}
+                              placeholder={`Designation ${index + 1}`}
+                              ref={(el) => {
+                                roleInputRefs.current[index] = el;
+                              }}
+                              type="text"
+                              value={line}
+                            />
+                          </PopoverAnchor>
+                          <PopoverContent
+                            align="start"
+                            className="group z-[100] w-72 min-w-[200px] p-0 lg:w-auto"
+                            onCloseAutoFocus={(e) => e.preventDefault()}
+                            onOpenAutoFocus={(e) => e.preventDefault()}
+                          >
                             <div
-                              className="absolute right-0 bottom-full left-0 z-50 mb-1 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-lg lg:top-full lg:bottom-auto lg:mt-1 lg:mb-0"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onPointerDown={(e) => e.preventDefault()}
+                              className="flex max-h-[40vh] flex-col overflow-y-auto p-1"
                               role="listbox"
                             >
-                              {translit.roleSuggestions.map((s, idx) => (
-                                <button
-                                  className={cn(
-                                    "flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm hover:bg-accent lg:py-2",
-                                    idx === translit.roleSuggestionIndex &&
-                                      "bg-accent",
-                                  )}
-                                  key={`role-suggestion-${s}`}
-                                  onClick={() => pickRoleSuggestion(s)}
-                                  onMouseEnter={() =>
-                                    translit.setSuggestionIndex("role", idx)
-                                  }
-                                  type="button"
+                              <div className="flex items-center justify-between px-2 py-1 text-muted-foreground text-xs lg:hidden">
+                                <span>Suggestions</span>
+                                <Button
+                                  className="h-auto p-0"
+                                  onClick={translit.hideRoleSuggestions}
+                                  variant="ghost"
                                 >
-                                  {s}
-                                </button>
-                              ))}
+                                  <X className="size-3" />
+                                </Button>
+                              </div>
+                              <div className="flex flex-col group-data-[side=top]:flex-col-reverse">
+                                {translit.roleSuggestions.map((s, idx) => (
+                                  <button
+                                    className={cn(
+                                      "flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm hover:bg-accent lg:py-2",
+                                      idx === translit.roleSuggestionIndex &&
+                                        "bg-accent",
+                                    )}
+                                    key={`role-suggestion-${s}`}
+                                    onClick={() => pickRoleSuggestion(s)}
+                                    onMouseEnter={() =>
+                                      translit.setSuggestionIndex("role", idx)
+                                    }
+                                    type="button"
+                                  >
+                                    {s}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                          )}
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
                   ))}
@@ -475,8 +593,9 @@ export function PosterPage() {
               <div
                 className={cn(
                   "absolute top-1/2 left-1/2 w-[35%] cursor-grab touch-none select-none",
-                  pb.selectedTextId === "photo" && "outline-1 outline-blue-500",
+                  pb.selectedTextId === "photo" && "z-10",
                 )}
+                id="photoElement"
                 onPointerCancel={drag.onPhotoPointerUp}
                 onPointerDown={(e) => {
                   drag.onPhotoPointerDown(e);
@@ -487,6 +606,9 @@ export function PosterPage() {
                   drag.onPhotoPointerUp(e);
                   pb.setSelectedTextId("photo");
                 }}
+                onTouchEnd={isPhotoSelected ? pinch.onTouchEnd : undefined}
+                onTouchMove={isPhotoSelected ? pinch.onTouchMove : undefined}
+                onTouchStart={isPhotoSelected ? pinch.onTouchStart : undefined}
                 style={{
                   transform: `translate(-50%, -50%) translate(${pb.offsetX}px, ${pb.offsetY}px) scale(${pb.scale})`,
                 }}
@@ -497,6 +619,13 @@ export function PosterPage() {
                   draggable={false}
                   ref={pb.photoImageRef}
                   src={pb.photoSrc}
+                />
+                <Handles
+                  elementId="photoElement"
+                  isActive={isPhotoSelected}
+                  onChange={handleScale}
+                  value={pb.scale}
+                  visualScale={pb.scale}
                 />
                 {pb.removeBgBusy && (
                   <div
@@ -536,8 +665,7 @@ export function PosterPage() {
                   <div
                     className={cn(
                       "pointer-events-auto absolute w-fit cursor-grab touch-none select-none py-1",
-                      pb.selectedTextId === "name" &&
-                        "outline-1 outline-blue-500",
+                      pb.selectedTextId === "name" && "z-10",
                     )}
                     id="nameText"
                     onPointerCancel={drag.onNamePointerUp}
@@ -548,10 +676,24 @@ export function PosterPage() {
                       drag.onNamePointerUp(e);
                       pb.setSelectedTextId("name");
                     }}
+                    onTouchEnd={isNameSelected ? pinch.onTouchEnd : undefined}
+                    onTouchMove={isNameSelected ? pinch.onTouchMove : undefined}
+                    onTouchStart={
+                      isNameSelected ? pinch.onTouchStart : undefined
+                    }
                     ref={pb.nameTextRef}
                     style={cssStringToObject(pb.nameTransformStyle)}
                   >
                     {pb.fullName}
+                    <Handles
+                      elementId="nameText"
+                      isActive={isNameSelected}
+                      onChange={handleScale}
+                      value={pb.nameScaleAdjust}
+                      visualScale={
+                        pb.activeFrameConfig.nameText.scale * pb.nameScaleAdjust
+                      }
+                    />
                   </div>
                 )}
 
@@ -560,8 +702,7 @@ export function PosterPage() {
                     <div
                       className={cn(
                         "designation-primary pointer-events-auto absolute w-fit cursor-grab touch-none select-none p-1",
-                        pb.selectedTextId === index &&
-                          "outline-1 outline-blue-500",
+                        pb.selectedTextId === index && "z-10",
                       )}
                       id={`roleText-${index}`}
                       key={`role-${index.toString()}`}
@@ -573,9 +714,34 @@ export function PosterPage() {
                         drag.onRolePointerUp(e);
                         pb.setSelectedTextId(index);
                       }}
+                      onTouchEnd={
+                        pb.selectedTextId === index
+                          ? pinch.onTouchEnd
+                          : undefined
+                      }
+                      onTouchMove={
+                        pb.selectedTextId === index
+                          ? pinch.onTouchMove
+                          : undefined
+                      }
+                      onTouchStart={
+                        pb.selectedTextId === index
+                          ? pinch.onTouchStart
+                          : undefined
+                      }
                       style={cssStringToObject(pb.getRoleTransformStyle(index))}
                     >
                       {line}
+                      <Handles
+                        elementId={`roleText-${index}`}
+                        isActive={pb.selectedTextId === index}
+                        onChange={handleScale}
+                        value={pb.roleScaleAdjusts[index] ?? 1}
+                        visualScale={
+                          pb.activeFrameConfig.roleText.scale *
+                          (pb.roleScaleAdjusts[index] ?? 1)
+                        }
+                      />
                     </div>
                   ) : null,
                 )}
@@ -607,26 +773,30 @@ export function PosterPage() {
           <h2 className="mb-2 hidden font-medium text-sm lg:block">
             Available Frames
           </h2>
-          <div className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-3 lg:gap-2 lg:overflow-visible">
-            {pb.filteredFrames.map((frame) => (
-              <button
-                className={cn(
-                  "shrink-0 overflow-hidden rounded-md border bg-muted/50 transition hover:-translate-y-0.5 hover:shadow-md",
-                  pb.activeFrame === frame.src
-                    ? "border-primary ring-2 ring-primary/30"
-                    : "border-transparent",
-                )}
-                key={frame.id}
-                onClick={() => pb.setFrameFn(frame.src)}
-                type="button"
-              >
-                <img
-                  alt="Frame preview"
-                  className="h-20 w-full object-cover sm:h-24"
-                  src={frame.thumbSrc || frame.src}
-                />
-              </button>
-            ))}
+          <div className="group relative">
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-3 lg:gap-2 lg:overflow-visible">
+              {pb.filteredFrames.map((frame) => (
+                <button
+                  className={cn(
+                    "shrink-0 overflow-hidden rounded-md border bg-muted/50 transition hover:-translate-y-0.5 hover:shadow-md",
+                    pb.activeFrame === frame.src
+                      ? "border-primary ring-2 ring-primary/30"
+                      : "border-transparent",
+                  )}
+                  key={frame.id}
+                  onClick={() => pb.setFrameFn(frame.src)}
+                  type="button"
+                >
+                  <img
+                    alt="Frame preview"
+                    className="h-20 w-full object-cover sm:h-24"
+                    src={frame.thumbSrc || frame.src}
+                  />
+                </button>
+              ))}
+            </div>
+            {/* Scroll hint gradient for mobile */}
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent opacity-100 transition-opacity lg:hidden" />
           </div>
         </div>
       </section>
@@ -666,7 +836,7 @@ function PhotoToolbar({ pb, onClose }: { pb: PbReturn; onClose: () => void }) {
       {/* BG Removal with quality picker */}
       <div className="flex items-center">
         <Button
-          className="h-7 gap-1.5 rounded-r-none pl-2.5 text-xs"
+          className="h-7 gap-1.5 rounded-r-none border-r-0 pl-2.5 text-xs"
           disabled={!pb.hasPhoto || pb.removeBgBusy}
           onClick={() => pb.removeBackground(pb.removeBgQuality)}
           size="sm"
@@ -678,7 +848,7 @@ function PhotoToolbar({ pb, onClose }: { pb: PbReturn; onClose: () => void }) {
         <Popover onOpenChange={setQualityOpen} open={qualityOpen}>
           <PopoverTrigger asChild>
             <Button
-              className="h-7"
+              className="h-7 rounded-l-none"
               disabled={pb.removeBgBusy}
               size="sm"
               variant="ghost"
@@ -972,4 +1142,81 @@ function cssStringToObject(cssString: string): React.CSSProperties {
     style[camelProp] = value;
   }
   return style as React.CSSProperties;
+}
+
+function Handles({
+  value,
+  visualScale,
+  onChange,
+  isActive,
+  elementId,
+}: {
+  value: number;
+  visualScale: number;
+  onChange: (v: number) => void;
+  isActive: boolean;
+  elementId: string;
+}) {
+  if (!isActive) return null;
+
+  const handleDrag = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    // Calculate initial distance/angle? Just distance for scale.
+    // Handles are at corners.
+    const startDist = Math.hypot(e.clientX - cx, e.clientY - cy);
+    const startValue = value;
+
+    const onMove = (e: PointerEvent) => {
+      const curDist = Math.hypot(e.clientX - cx, e.clientY - cy);
+      if (startDist < 1) return;
+      const newValue = startValue * (curDist / startDist);
+      onChange(newValue);
+    };
+
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
+  // Inverse scale the handles so they stay constant visual size (roughly)
+  const handleStyle: React.CSSProperties = {
+    transform: `scale(${1 / Math.max(0.1, visualScale)})`,
+  };
+
+  return (
+    <div className="pointer-events-none absolute inset-0 border-2 border-primary">
+      {/* 4 Corners */}
+      {[
+        { pos: "-top-4 -left-4", cursor: "cursor-nwse-resize" },
+        { pos: "-top-4 -right-4", cursor: "cursor-nesw-resize" },
+        { pos: "-bottom-4 -left-4", cursor: "cursor-nesw-resize" },
+        { pos: "-bottom-4 -right-4", cursor: "cursor-nwse-resize" },
+      ].map(({ pos, cursor }) => (
+        <div
+          className={cn(
+            "pointer-events-auto absolute flex size-8 touch-none select-none items-center justify-center rounded-full",
+            pos,
+            cursor,
+          )}
+          key={pos}
+          onPointerDown={handleDrag}
+          style={handleStyle}
+        >
+          {/* Visual Handle */}
+          <div className="size-3.5 rounded-full border border-primary bg-background shadow-sm" />
+        </div>
+      ))}
+    </div>
+  );
 }

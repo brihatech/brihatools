@@ -120,7 +120,7 @@ export function useTransliteration() {
       suggestion: string,
       input: HTMLInputElement | null,
       suffix = "",
-    ): string | null => {
+    ): { value: string; cursor: number } | null => {
       if (!input) return null;
       const { before, after } = splitByCursor(input);
       const { prefix } = extractLastToken(before);
@@ -140,7 +140,7 @@ export function useTransliteration() {
         setRoleSuggestionIndex(-1);
       }
 
-      return nextValue;
+      return { value: nextValue, cursor: newCursor };
     },
     [],
   );

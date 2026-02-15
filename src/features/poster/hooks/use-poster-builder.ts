@@ -645,8 +645,10 @@ export function usePosterBuilder() {
     setNameColor,
     setNameTextStyle,
     setRemoveBgQuality,
+    setRoleScaleAdjusts,
     setSelectedTextId,
     setScale,
+    setNameScaleAdjust,
     stageRef,
     updateFrameOverlay,
   };

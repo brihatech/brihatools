@@ -6,9 +6,9 @@ import {
   Images,
   Loader2,
 } from "lucide-react";
+import { useRef } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { usePinch } from "@/hooks/use-pinch";
 import { cn } from "@/lib/utils";
 
 import type { ExportQuality } from "./lib/state";
@@ -57,33 +58,63 @@ export function FramerPage() {
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto">
           {/* Frame Upload */}
           <div className="space-y-2">
-            <Label className="flex items-center gap-2" htmlFor="frameInput">
-              <ImagePlus className="size-4 text-muted-foreground" />
+            <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
               Frame / Background
             </Label>
-            <Input
-              accept="image/*"
-              id="frameInput"
-              onChange={onFrameChange}
-              type="file"
-            />
-            <p className="text-muted-foreground text-xs">{frameStatus}</p>
+            <div className="group relative">
+              <input
+                accept="image/*"
+                className="hidden"
+                id="frameInput"
+                onChange={onFrameChange}
+                type="file"
+              />
+              <label
+                className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-border border-dashed bg-muted/30 px-4 transition-colors hover:border-primary/50 hover:bg-muted/50"
+                htmlFor="frameInput"
+              >
+                <div className="rounded-full bg-background p-2 shadow-sm ring-1 ring-border transition-colors group-hover:ring-primary/20">
+                  <ImagePlus className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+                </div>
+                <span className="text-center font-medium text-muted-foreground text-xs transition-colors group-hover:text-foreground">
+                  Click to select frame
+                </span>
+              </label>
+            </div>
+            {frameStatus && (
+              <p className="font-medium text-primary text-xs">{frameStatus}</p>
+            )}
           </div>
 
           {/* Photos Upload */}
           <div className="space-y-2">
-            <Label className="flex items-center gap-2" htmlFor="photoInput">
-              <Images className="size-4 text-muted-foreground" />
+            <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
               Source Photos
             </Label>
-            <Input
-              accept="image/*"
-              id="photoInput"
-              multiple
-              onChange={onPhotosChange}
-              type="file"
-            />
-            <p className="text-muted-foreground text-xs">{photoStatus}</p>
+            <div className="group relative">
+              <input
+                accept="image/*"
+                className="hidden"
+                id="photoInput"
+                multiple
+                onChange={onPhotosChange}
+                type="file"
+              />
+              <label
+                className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-border border-dashed bg-muted/30 px-4 transition-colors hover:border-primary/50 hover:bg-muted/50"
+                htmlFor="photoInput"
+              >
+                <div className="rounded-full bg-background p-2 shadow-sm ring-1 ring-border transition-colors group-hover:ring-primary/20">
+                  <Images className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+                </div>
+                <span className="text-center font-medium text-muted-foreground text-xs transition-colors group-hover:text-foreground">
+                  Click to select photos
+                </span>
+              </label>
+            </div>
+            {photoStatus && (
+              <p className="font-medium text-primary text-xs">{photoStatus}</p>
+            )}
           </div>
 
           {/* Export Quality */}
@@ -187,6 +218,31 @@ function PreviewPanel({
   onScaleChange: (v: number) => void;
   scale: number;
 }) {
+  const pinch = usePinch(scale, onScaleChange, !navDisabled && !isLoading);
+  const dragRef = useRef({ active: false, startOffset: 0, startX: 0 });
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (navDisabled || isLoading) return;
+    dragRef.current = { active: true, startOffset: offset, startX: e.clientX };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragRef.current.active) return;
+    const deltaX = e.clientX - dragRef.current.startX;
+    // Map pixel movement to offset range (-1 to 1)
+    // Sensitivity: 500px = full range (approx)
+    const newOffset = dragRef.current.startOffset + deltaX / 500;
+    onOffsetChange(Math.max(-1, Math.min(1, newOffset)));
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    dragRef.current.active = false;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {/* Navigation arrows + label */}
@@ -216,7 +272,15 @@ function PreviewPanel({
       </div>
 
       {/* Canvas */}
-      <div className="relative flex items-center justify-center overflow-hidden rounded-lg border bg-card p-3 shadow-sm">
+      <div
+        className="relative flex touch-none items-center justify-center overflow-hidden rounded-lg border bg-card p-3 shadow-sm"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onTouchEnd={pinch.onTouchEnd}
+        onTouchMove={pinch.onTouchMove}
+        onTouchStart={pinch.onTouchStart}
+      >
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/80 backdrop-blur-sm">
             <Loader2 className="size-8 animate-spin text-primary" />
