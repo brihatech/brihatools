@@ -4,7 +4,7 @@ import {
   calculateTargetSize,
   type Dimensions,
   type OrientationType,
-} from "../lib/image";
+} from "../../../lib/image";
 
 interface RenderJob {
   frame: ImageBitmap;

@@ -12,6 +12,8 @@ export interface PhotoManager {
   handleSelection: (files: FileList | null) => void;
   ensurePhotoReady: (photo: PhotoItem) => Promise<ImageBitmap>;
   groupPhotosByOrientation: () => Record<PreviewOrientation, PhotoItem[]>;
+  getPhotos: () => PhotoItem[];
+  getFrameBitmap: () => ImageBitmap | null;
   getPendingCount: () => number;
   anyReady: () => boolean;
 }
@@ -115,6 +117,8 @@ export const createPhotoManager = (
     handleSelection,
     ensurePhotoReady,
     groupPhotosByOrientation,
+    getPhotos: () => state.photos,
+    getFrameBitmap: () => state.frameBitmap,
     getPendingCount,
     anyReady,
   };

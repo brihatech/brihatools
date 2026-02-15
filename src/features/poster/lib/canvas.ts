@@ -10,6 +10,7 @@ export type PillStyle = {
   fontSizePx: number;
   lineHeightPx: number;
   fontWeight: string;
+  fontStyle: string;
   letterSpacingPx: number;
   textTransform: string;
   textColor: string;
@@ -78,6 +79,7 @@ export const getPillStyle = (element: HTMLElement): PillStyle => {
     fontSizePx,
     lineHeightPx: resolvedLineHeight,
     fontWeight: style.fontWeight || "600",
+    fontStyle: style.fontStyle || "normal",
     letterSpacingPx: parsePx(style.letterSpacing),
     textTransform: style.textTransform || "none",
     textColor: style.color || "#0f172a",
@@ -134,7 +136,6 @@ const downloadCanvasPng = async (canvas: HTMLCanvasElement, name: string) => {
   }
 };
 
-const PHOTO_BASE_WIDTH_FRACTION = 0.35;
 export type PosterConfig = {
   stage: HTMLDivElement;
   frameImage: HTMLImageElement;
@@ -143,23 +144,16 @@ export type PosterConfig = {
   fullName: string;
   designations: {
     text: string;
-    offsetX: number;
-    offsetY: number;
-    element: HTMLElement;
+    originalIndex: number;
+    scale: number;
+    colorOverride?: string;
+    bgColorOverride?: string;
   }[];
-  nameBaseXPct: number;
-  nameBaseYPct: number;
-  roleBaseXPct: number;
-  roleBaseYPct: number;
   nameScale: number;
-  roleScale: number;
+  nameColorOverride?: string;
+  nameBgColorOverride?: string;
   hasOverlay: boolean;
   overlaySrc: string;
-  nameOffsetX: number;
-  nameOffsetY: number;
-  offsetX: number;
-  offsetY: number;
-  scale: number;
   hasPhoto: boolean;
   photoSrc: string;
 };
@@ -172,19 +166,9 @@ export async function generatePoster(config: PosterConfig) {
     nameText,
     fullName,
     designations,
-    nameBaseXPct,
-    nameBaseYPct,
-    roleBaseXPct,
-    roleBaseYPct,
     nameScale,
-    roleScale,
     hasOverlay,
     overlaySrc,
-    nameOffsetX,
-    nameOffsetY,
-    offsetX,
-    offsetY,
-    scale,
     hasPhoto,
     photoSrc,
   } = config;
@@ -203,23 +187,35 @@ export async function generatePoster(config: PosterConfig) {
     throw new Error("Frame image not ready");
   }
 
-  const frameRectStage = computeContainedRect(
-    stageRect.width,
-    stageRect.height,
-    frameImage.naturalWidth,
-    frameImage.naturalHeight,
-  );
+  // Use the actual frame overlay DOM rect for accurate mapping.
+  // This avoids border-box vs content-box mismatches and timing issues.
+  const overlayEl = document.getElementById("frameOverlay");
+  let frameRectStage: Rect;
+  if (overlayEl) {
+    const oRect = overlayEl.getBoundingClientRect();
+    frameRectStage = {
+      x: oRect.left - stageRect.left,
+      y: oRect.top - stageRect.top,
+      width: oRect.width,
+      height: oRect.height,
+    };
+  } else {
+    frameRectStage = computeContainedRect(
+      stageRect.width,
+      stageRect.height,
+      frameImage.naturalWidth,
+      frameImage.naturalHeight,
+    );
+  }
 
-  const exportScale = 1;
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(frameImage.naturalWidth * exportScale);
-  canvas.height = Math.round(frameImage.naturalHeight * exportScale);
+  canvas.width = frameImage.naturalWidth;
+  canvas.height = frameImage.naturalHeight;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     throw new Error("Unable to create canvas context.");
   }
 
-  ctx.setTransform(exportScale, 0, 0, exportScale, 0, 0);
   ctx.clearRect(0, 0, frameImage.naturalWidth, frameImage.naturalHeight);
 
   ctx.drawImage(
@@ -233,21 +229,18 @@ export async function generatePoster(config: PosterConfig) {
   const sx = frameImage.naturalWidth / frameRectStage.width;
   const sy = frameImage.naturalHeight / frameRectStage.height;
 
+  // Photo: read actual DOM position instead of recomputing from offsets
   if (hasPhoto && photoImage && photoSrc) {
-    const photoNaturalWidth = photoImage.naturalWidth;
-    const photoNaturalHeight = photoImage.naturalHeight;
+    const photoContainer = photoImage.parentElement;
+    if (photoContainer) {
+      const pRect = photoContainer.getBoundingClientRect();
+      const centerXStage = pRect.left + pRect.width / 2 - stageRect.left;
+      const centerYStage = pRect.top + pRect.height / 2 - stageRect.top;
 
-    if (photoNaturalWidth > 0 && photoNaturalHeight > 0) {
-      const stageCenterX = stageRect.width / 2 + offsetX;
-      const stageCenterY = stageRect.height / 2 + offsetY;
-
-      const centerXFrame = (stageCenterX - frameRectStage.x) * sx;
-      const centerYFrame = (stageCenterY - frameRectStage.y) * sy;
-
-      const baseWidthStage = PHOTO_BASE_WIDTH_FRACTION * stageRect.width;
-      const widthStage = baseWidthStage * scale;
-      const widthFrame = widthStage * sx;
-      const heightFrame = widthFrame * (photoNaturalHeight / photoNaturalWidth);
+      const centerXFrame = (centerXStage - frameRectStage.x) * sx;
+      const centerYFrame = (centerYStage - frameRectStage.y) * sy;
+      const widthFrame = pRect.width * sx;
+      const heightFrame = pRect.height * sy;
 
       ctx.drawImage(
         photoImage,
@@ -276,7 +269,8 @@ export async function generatePoster(config: PosterConfig) {
     const letterSpacing = pill.letterSpacingPx * sx * scale;
     const allowLetterSpacing = letterSpacing > 0 && !lines.some(hasNonAscii);
 
-    ctx.font = `${pill.fontWeight} ${fontSize}px ${pill.fontFamily}`;
+    const fontStylePrefix = pill.fontStyle === "italic" ? "italic " : "";
+    ctx.font = `${fontStylePrefix}${pill.fontWeight} ${fontSize}px ${pill.fontFamily}`;
     ctx.textBaseline = "top";
     let maxTextWidth = 0;
     for (const line of lines) {
@@ -312,6 +306,7 @@ export async function generatePoster(config: PosterConfig) {
       letterSpacing: allowLetterSpacing ? letterSpacing : 0,
       lineHeight,
       halfLeading,
+      fontSize,
       textColor: pill.textColor,
       backgroundColor: pill.backgroundColor,
     };
@@ -351,10 +346,17 @@ export async function generatePoster(config: PosterConfig) {
     ctx.drawImage(overlayImage, 0, 0, frameW, frameH);
   }
 
+  // Text: read actual DOM positions for accurate placement
   if (safeName) {
-    const nameSpec = makePillSpec(safeName, getPillStyle(nameText), nameScale);
-    const nameX = (nameBaseXPct / 100) * frameW + nameOffsetX * sx;
-    const nameY = (nameBaseYPct / 100) * frameH + nameOffsetY * sy;
+    const nameStyle = getPillStyle(nameText);
+    if (config.nameColorOverride)
+      nameStyle.textColor = config.nameColorOverride;
+    if (config.nameBgColorOverride)
+      nameStyle.backgroundColor = config.nameBgColorOverride;
+    const nameSpec = makePillSpec(safeName, nameStyle, nameScale);
+    const nRect = nameText.getBoundingClientRect();
+    const nameX = (nRect.left - stageRect.left - frameRectStage.x) * sx;
+    const nameY = (nRect.top - stageRect.top - frameRectStage.y) * sy;
     drawPill(nameSpec, nameX, nameY);
   }
 
@@ -363,10 +365,17 @@ export async function generatePoster(config: PosterConfig) {
       const text = des.text.trim();
       if (!text) continue;
 
-      const roleStyle = getPillStyle(des.element);
-      const roleSpec = makePillSpec(text, roleStyle, roleScale);
-      const roleX = (roleBaseXPct / 100) * frameW + des.offsetX * sx;
-      const roleY = (roleBaseYPct / 100) * frameH + des.offsetY * sy;
+      const roleEl = document.getElementById(`roleText-${des.originalIndex}`);
+      if (!roleEl) continue;
+
+      const desStyle = getPillStyle(roleEl);
+      if (des.colorOverride) desStyle.textColor = des.colorOverride;
+      if (des.bgColorOverride) desStyle.backgroundColor = des.bgColorOverride;
+
+      const roleSpec = makePillSpec(text, desStyle, des.scale);
+      const rRect = roleEl.getBoundingClientRect();
+      const roleX = (rRect.left - stageRect.left - frameRectStage.x) * sx;
+      const roleY = (rRect.top - stageRect.top - frameRectStage.y) * sy;
       drawPill(roleSpec, roleX, roleY);
     }
   }

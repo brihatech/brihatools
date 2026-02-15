@@ -1,4 +1,4 @@
-import type { PhotoManager } from "./photoLoader";
+import type { PhotoManager } from "./photo-loader";
 import { getExportScale, type PhotoFramerState } from "./state";
 
 export interface DownloadHooks {
@@ -11,7 +11,10 @@ export const handleDownload = async (
   photoManager: PhotoManager,
   hooks: DownloadHooks,
 ) => {
-  if (!state.frameBitmap || state.photos.length === 0 || state.isProcessing) {
+  const photos = photoManager.getPhotos();
+  const currentFrameBitmap = photoManager.getFrameBitmap();
+
+  if (!currentFrameBitmap || photos.length === 0 || state.isProcessing) {
     return;
   }
 
@@ -24,13 +27,13 @@ export const handleDownload = async (
   });
 
   const photosData: Array<{ name: string; bitmap: ImageBitmap }> = [];
-  for (const photo of state.photos) {
+  for (const photo of photos) {
     const readyBitmap = await photoManager.ensurePhotoReady(photo);
     const bitmap = await createImageBitmap(readyBitmap);
     photosData.push({ name: photo.name, bitmap });
   }
 
-  const frameBitmap = await createImageBitmap(state.frameBitmap);
+  const frameBitmap = await createImageBitmap(currentFrameBitmap);
 
   worker.onmessage = (event) => {
     const { type, current, total, blob } = event.data;

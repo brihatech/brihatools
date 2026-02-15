@@ -14,7 +14,7 @@ export const splitByCursor = (
 };
 
 export const extractLastToken = (text: string) => {
-  const match = text.match(/(\S+)\s*$/);
+  const match = text.match(/(\S+)$/);
   if (!match) {
     return { token: "", prefix: text };
   }
