@@ -20,6 +20,27 @@ const TEXT_SCALE_MAX = 1.2;
 const TEXT_SCALE_STEP = 0.05;
 const MAX_DESIGNATIONS = 5;
 
+type DesignationStyle = {
+  fontSizePx: number;
+  color: string;
+  fontWeight: string;
+};
+
+const DEFAULT_ROLE_STYLE_SOURCE =
+  FRAMES.find((frame) => frame.src === DEFAULT_FRAME_SRC) ?? FRAMES[0];
+
+const DEFAULT_ROLE_STYLE: DesignationStyle = DEFAULT_ROLE_STYLE_SOURCE
+  ? {
+      fontSizePx: DEFAULT_ROLE_STYLE_SOURCE.roleText.fontSizePx,
+      color: DEFAULT_ROLE_STYLE_SOURCE.roleText.color,
+      fontWeight: DEFAULT_ROLE_STYLE_SOURCE.roleText.fontWeight,
+    }
+  : {
+      fontSizePx: 32,
+      color: "#0f172a",
+      fontWeight: "600",
+    };
+
 enforcePosterOnlyHosts();
 
 const Alpine = getAlpine();
@@ -70,6 +91,7 @@ Alpine.data("posterBuilder", () => {
     // Text
     fullName: "",
     designationLines: [""],
+    designationStyles: [{ ...DEFAULT_ROLE_STYLE }],
     // Store offsets for each designation line independently.
     designationOffsets: [{ x: 0, y: 0 }],
     activeRoleIndex: 0,
@@ -85,6 +107,7 @@ Alpine.data("posterBuilder", () => {
     nameOffsetsByFrame: {} as Record<string, { x: number; y: number }>,
     // Store array of offsets per frame
     roleOffsetsByFrame: {} as Record<string, { x: number; y: number }[]>,
+    roleStylesByFrame: {} as Record<string, DesignationStyle[]>,
 
     // Suggestions
     nameSuggestions: [] as string[],
@@ -141,20 +164,77 @@ Alpine.data("posterBuilder", () => {
     getRoleTransformStyle(index: number) {
       const { roleText } = this.activeFrameConfig;
       const offsets = this.designationOffsets[index] || { x: 0, y: 0 };
+      const style = this.designationStyles[index];
+      const fontSize = style?.fontSizePx ?? roleText.fontSizePx;
+      const color = style?.color ?? roleText.color;
+      const fontWeight = style?.fontWeight ?? roleText.fontWeight;
       return [
         `left: ${roleText.xPct}%`,
         `top: ${roleText.yPct}%`,
-        `color: ${roleText.color}`,
+        `color: ${color}`,
         `font-family: ${roleText.fontFamily}`,
-        `font-size: calc(${roleText.fontSizePx} * 1em)`,
-        `font-weight: ${roleText.fontWeight}`,
+        `font-size: calc(${fontSize} * 1em)`,
+        `font-weight: ${fontWeight}`,
         `background-color: ${roleText.backgroundColor}`,
         "transform-origin: left top",
         `transform: translate(${offsets.x}px, ${offsets.y}px) scale(${roleText.scale * this.roleScaleAdjust})`,
       ].join("; ");
     },
 
-    // designationPrimary/Secondary getters removed as they are no longer relevant for layout
+    getDefaultDesignationStyle() {
+      const { roleText } = this.activeFrameConfig;
+      return {
+        fontSizePx: roleText.fontSizePx,
+        color: roleText.color,
+        fontWeight: roleText.fontWeight,
+      };
+    },
+
+    getDesignationStyle(index: number) {
+      return this.designationStyles[index] ?? this.getDefaultDesignationStyle();
+    },
+
+    ensureDesignationStyle(index: number) {
+      if (!this.designationStyles[index]) {
+        this.designationStyles[index] = this.getDefaultDesignationStyle();
+      }
+      return this.designationStyles[index];
+    },
+
+    clampDesignationFontSize(value: number) {
+      const fallback = this.getDefaultDesignationStyle().fontSizePx;
+      if (!Number.isFinite(value)) {
+        return fallback;
+      }
+      return Math.min(96, Math.max(12, Math.round(value)));
+    },
+
+    setDesignationFontSize(index: number, event: Event) {
+      const target = event.target as HTMLInputElement;
+      const clamped = this.clampDesignationFontSize(Number(target.value));
+      const style = this.ensureDesignationStyle(index);
+      style.fontSizePx = clamped;
+      target.value = String(clamped);
+      this.saveActiveTextOffsets();
+    },
+
+    setDesignationFontColor(index: number, event: Event) {
+      const target = event.target as HTMLInputElement;
+      if (!target.value) {
+        return;
+      }
+      const style = this.ensureDesignationStyle(index);
+      style.color = target.value;
+      this.saveActiveTextOffsets();
+    },
+
+    setDesignationFontWeight(index: number, event: Event) {
+      const target = event.target as HTMLSelectElement;
+      const style = this.ensureDesignationStyle(index);
+      style.fontWeight =
+        target.value || this.getDefaultDesignationStyle().fontWeight;
+      this.saveActiveTextOffsets();
+    },
 
     clampTextScale(value: number) {
       const rounded = Number(value.toFixed(2));
@@ -202,6 +282,8 @@ Alpine.data("posterBuilder", () => {
 
       // Initialize offsets for the new designation
       this.designationOffsets.push({ x: newX, y: newY });
+      this.designationStyles.push(this.getDefaultDesignationStyle());
+      this.saveActiveTextOffsets();
     },
 
     saveActiveTextOffsets() {
@@ -214,6 +296,9 @@ Alpine.data("posterBuilder", () => {
       // Save deep copy of offsets
       this.roleOffsetsByFrame[key] = this.designationOffsets.map((o) => ({
         ...o,
+      }));
+      this.roleStylesByFrame[key] = this.designationStyles.map((style) => ({
+        ...style,
       }));
     },
 
@@ -235,6 +320,17 @@ Alpine.data("posterBuilder", () => {
         // keep the current position so it doesn't jump to 0,0.
         // Fallback to 0,0 only if we have no current offset either (shouldn't happen).
         return currentOffsets[i] ? { ...currentOffsets[i] } : { x: 0, y: 0 };
+      });
+    },
+
+    applyDesignationStylesForFrame(frameSrc: string) {
+      const savedStyles = this.roleStylesByFrame[frameSrc];
+      const fallback = this.getDefaultDesignationStyle();
+      this.designationStyles = this.designationLines.map((_, i) => {
+        if (savedStyles?.[i]) {
+          return { ...savedStyles[i] };
+        }
+        return { ...fallback };
       });
     },
     clampDragDelta(target: HTMLElement, dx: number, dy: number) {
@@ -270,6 +366,7 @@ Alpine.data("posterBuilder", () => {
       this.setCategory(inferred);
 
       this.applyTextOffsetsForFrame(this.activeFrame);
+      this.applyDesignationStylesForFrame(this.activeFrame);
 
       const frameImage = this.ref<HTMLImageElement>("frameImage");
       if (frameImage) {
@@ -304,6 +401,7 @@ Alpine.data("posterBuilder", () => {
           this.saveActiveTextOffsets();
           this.activeFrame = first.src;
           this.applyTextOffsetsForFrame(this.activeFrame);
+          this.applyDesignationStylesForFrame(this.activeFrame);
           queueMicrotask(() => this.updateFrameOverlay());
         }
       }
@@ -314,6 +412,7 @@ Alpine.data("posterBuilder", () => {
       this.saveActiveTextOffsets();
       this.activeFrame = src;
       this.applyTextOffsetsForFrame(this.activeFrame);
+      this.applyDesignationStylesForFrame(this.activeFrame);
       queueMicrotask(() => this.updateFrameOverlay());
     },
 
@@ -626,15 +725,7 @@ Alpine.data("posterBuilder", () => {
       const frameImage = this.ref<HTMLImageElement>("frameImage");
       const photoImage = this.ref<HTMLImageElement>("photoImage");
       const nameText = this.ref<HTMLElement>("nameText");
-      // For export we need a reference role element for style.
-      // We can take the first available role text element or default to config.
-      // Since we loop in template, refs might not be direct.
-      // We'll try to find the first one.
-      const roleText =
-        document.getElementById("roleText-0") ||
-        document.querySelector("[id^='roleText-']");
-
-      if (!stage || !frameImage || !nameText || !roleText) {
+      if (!stage || !frameImage || !nameText) {
         console.error("Missing elements for export");
         return;
       }
@@ -642,13 +733,31 @@ Alpine.data("posterBuilder", () => {
       this.exportBusy = true;
       this.exportMessage = "";
 
-      const designationsForExport = this.designationLines
-        .map((line, i) => ({
+      const designationsForExport = this.designationLines.reduce<
+        {
+          text: string;
+          offsetX: number;
+          offsetY: number;
+          element: HTMLElement;
+        }[]
+      >((acc, line, index) => {
+        if (!line.trim()) {
+          return acc;
+        }
+        const element = document.getElementById(
+          `roleText-${index}`,
+        ) as HTMLElement | null;
+        if (!element) {
+          return acc;
+        }
+        acc.push({
           text: line,
-          offsetX: this.designationOffsets[i]?.x ?? 0,
-          offsetY: this.designationOffsets[i]?.y ?? 0,
-        }))
-        .filter((d) => d.text.trim().length > 0);
+          offsetX: this.designationOffsets[index]?.x ?? 0,
+          offsetY: this.designationOffsets[index]?.y ?? 0,
+          element,
+        });
+        return acc;
+      }, []);
 
       try {
         await generatePoster({
@@ -656,7 +765,6 @@ Alpine.data("posterBuilder", () => {
           frameImage,
           photoImage,
           nameText,
-          roleText: roleText as HTMLElement,
           fullName: this.fullName,
           designations: designationsForExport,
           nameBaseXPct: this.activeFrameConfig.nameText.xPct,
