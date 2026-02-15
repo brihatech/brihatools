@@ -62,7 +62,7 @@ export function NepaliPdfPage() {
             />
             {pdf.hasPdf && (
               <Button
-                className="min-h-[44px] gap-2 text-xs sm:min-h-[36px]"
+                className="min-h-11-2 text-xs sm:min-h-9"
                 disabled={pdf.busy}
                 onClick={pdf.clearPdf}
                 size="sm"
@@ -84,7 +84,7 @@ export function NepaliPdfPage() {
             )}
             <Button
               aria-label="Export as CSV"
-              className="min-h-[44px] gap-2 sm:min-h-[36px]"
+              className="min-h-11-2 sm:min-h-9"
               disabled={!pdf.exportEnabled}
               onClick={pdf.downloadCsv}
               size="sm"
@@ -95,7 +95,7 @@ export function NepaliPdfPage() {
             </Button>
             <Button
               aria-label="Export as Excel"
-              className="min-h-[44px] gap-2 sm:min-h-[36px]"
+              className="min-h-11 gap-2 sm:min-h-9"
               disabled={!pdf.exportEnabled}
               onClick={pdf.downloadXlsx}
               size="sm"
@@ -142,7 +142,7 @@ export function NepaliPdfPage() {
             <div className="relative overflow-x-auto rounded-lg border bg-card shadow-sm">
               {/* Scroll hint gradient for mobile */}
               {pdf.header.length > 3 && (
-                <div className="pointer-events-none absolute top-0 right-0 z-20 h-full w-8 bg-gradient-to-l from-background/80 to-transparent sm:hidden" />
+                <div className="pointer-events-none absolute top-0 right-0 z-20 h-full w-8 bg-linear-to-l from-background/80 to-transparent sm:hidden" />
               )}
               <table className="w-full text-left text-sm">
                 <thead className="sticky top-0 z-10 border-b bg-muted/95 backdrop-blur-sm">
@@ -174,7 +174,7 @@ export function NepaliPdfPage() {
                             "px-3 py-2 align-top",
                             cIdx === 0 &&
                               "sticky left-0 bg-card font-medium shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
-                            cIdx > 0 && "max-w-[200px] truncate",
+                            cIdx > 0 && "max-w-50 truncate",
                           )}
                           key={`${col}-${cIdx.toString()}`}
                           title={row[cIdx] ?? ""}
