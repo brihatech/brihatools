@@ -5,8 +5,10 @@ import {
   ImagePlus,
   Images,
   Loader2,
+  RotateCcw,
+  X,
 } from "lucide-react";
-import { type CSSProperties, useRef } from "react";
+import { type CSSProperties, useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,21 +27,98 @@ import { usePhotoFramer } from "./hooks/use-photo-framer";
 
 export function FramerPage() {
   const {
+    clearAll,
+    clearFrame,
+    clearPhotos,
     cyclePreview,
     downloadStatus,
     downloadZip,
-    frameStatus,
+    frameFile,
+    frameUrl,
     onFrameChange,
     onPhotosChange,
+    photoFiles,
     photoStatus,
     setExportQuality,
     setLandscapePan,
     setLandscapeScale,
     setPortraitPan,
     setPortraitScale,
+    setSquarePan,
+    setSquareScale,
     state,
     uiState,
   } = usePhotoFramer();
+
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to preview when both frame and photos are loaded
+  const hasFrame = Boolean(uiState.frameSrc);
+  const hasPhotos =
+    uiState.portrait.count > 0 ||
+    uiState.landscape.count > 0 ||
+    uiState.square.count > 0;
+  const prevReadyRef = useRef(false);
+
+  useEffect(() => {
+    const isReady = hasFrame && hasPhotos;
+    if (isReady && !prevReadyRef.current) {
+      // Small delay to let the panels render
+      setTimeout(() => {
+        previewRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+    }
+    prevReadyRef.current = isReady;
+  }, [hasFrame, hasPhotos]);
+
+  const hasAnything = frameFile || photoFiles.length > 0;
+
+  const activePanels: Array<{
+    key: string;
+    label: string;
+    state: (typeof uiState)["portrait"];
+    scale: number;
+    pan: { x: number; y: number };
+    onScaleChange: (v: number) => void;
+    onPanChange: (v: { x: number; y: number }) => void;
+  }> = [];
+
+  if (uiState.portrait.count > 0) {
+    activePanels.push({
+      key: "portrait",
+      label: "Portrait",
+      state: uiState.portrait,
+      scale: state.settings.portrait.scale,
+      pan: state.settings.portrait.pan,
+      onScaleChange: setPortraitScale,
+      onPanChange: setPortraitPan,
+    });
+  }
+  if (uiState.landscape.count > 0) {
+    activePanels.push({
+      key: "landscape",
+      label: "Landscape",
+      state: uiState.landscape,
+      scale: state.settings.landscape.scale,
+      pan: state.settings.landscape.pan,
+      onScaleChange: setLandscapeScale,
+      onPanChange: setLandscapePan,
+    });
+  }
+  if (uiState.square.count > 0) {
+    activePanels.push({
+      key: "square",
+      label: "Square",
+      state: uiState.square,
+      scale: state.settings.square.scale,
+      pan: state.settings.square.pan,
+      onScaleChange: setSquareScale,
+      onPanChange: setSquarePan,
+    });
+  }
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
@@ -58,28 +137,51 @@ export function FramerPage() {
             <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
               Frame / Background
             </Label>
-            <div className="group relative">
-              <input
-                accept="image/*"
-                className="hidden"
-                id="frameInput"
-                onChange={onFrameChange}
-                type="file"
-              />
-              <label
-                className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-border border-dashed bg-muted/30 px-4 transition-colors hover:border-primary/50 hover:bg-muted/50"
-                htmlFor="frameInput"
-              >
-                <div className="rounded-full bg-background p-2 shadow-sm ring-1 ring-border transition-colors group-hover:ring-primary/20">
-                  <ImagePlus className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+            {frameFile && frameUrl ? (
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-2.5">
+                <img
+                  alt="Frame preview"
+                  className="size-12 rounded-md border border-border object-cover shadow-sm"
+                  src={frameUrl}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-foreground text-xs">
+                    {frameFile.name}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {(frameFile.size / 1024).toFixed(0)} KB
+                  </p>
                 </div>
-                <span className="text-center font-medium text-muted-foreground text-xs transition-colors group-hover:text-foreground">
-                  Click to select frame
-                </span>
-              </label>
-            </div>
-            {frameStatus && (
-              <p className="font-medium text-primary text-xs">{frameStatus}</p>
+                <Button
+                  className="size-7 shrink-0"
+                  onClick={clearFrame}
+                  size="icon"
+                  variant="ghost"
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div className="group relative">
+                <input
+                  accept="image/*"
+                  className="hidden"
+                  id="frameInput"
+                  onChange={onFrameChange}
+                  type="file"
+                />
+                <label
+                  className="flex h-20 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-border border-dashed bg-muted/30 px-4 transition-colors hover:border-primary/50 hover:bg-muted/50"
+                  htmlFor="frameInput"
+                >
+                  <div className="rounded-full bg-background p-1.5 shadow-sm ring-1 ring-border transition-colors group-hover:ring-primary/20">
+                    <ImagePlus className="size-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
+                  </div>
+                  <span className="text-center font-medium text-muted-foreground text-xs transition-colors group-hover:text-foreground">
+                    Click to select frame
+                  </span>
+                </label>
+              </div>
             )}
           </div>
 
@@ -88,34 +190,78 @@ export function FramerPage() {
             <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
               Source Photos
             </Label>
-            <div className="group relative">
-              <input
-                accept="image/*"
-                className="hidden"
-                id="photoInput"
-                multiple
-                onChange={onPhotosChange}
-                type="file"
-              />
-              <label
-                className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-border border-dashed bg-muted/30 px-4 transition-colors hover:border-primary/50 hover:bg-muted/50"
-                htmlFor="photoInput"
-              >
-                <div className="rounded-full bg-background p-2 shadow-sm ring-1 ring-border transition-colors group-hover:ring-primary/20">
-                  <Images className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+            {photoFiles.length > 0 ? (
+              <div className="rounded-lg border border-border bg-muted/30 p-2.5">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="font-medium text-foreground text-xs">
+                    {photoFiles.length} photo
+                    {photoFiles.length !== 1 ? "s" : ""} selected
+                  </p>
+                  <Button
+                    className="size-7 shrink-0"
+                    onClick={clearPhotos}
+                    size="icon"
+                    variant="ghost"
+                  >
+                    <X className="size-3.5" />
+                  </Button>
                 </div>
-                <span className="text-center font-medium text-muted-foreground text-xs transition-colors group-hover:text-foreground">
-                  Click to select photos
-                </span>
-              </label>
-            </div>
-            {photoStatus && (
-              <p className="font-medium text-primary text-xs">{photoStatus}</p>
+                <div className="flex gap-1.5 overflow-hidden">
+                  {photoFiles.slice(0, 4).map((file) => (
+                    <PhotoThumb file={file} key={file.name + file.size} />
+                  ))}
+                  {photoFiles.length > 4 && (
+                    <div className="flex size-10 items-center justify-center rounded-md border border-border bg-muted font-medium text-[10px] text-muted-foreground">
+                      +{photoFiles.length - 4}
+                    </div>
+                  )}
+                </div>
+                {photoStatus && (
+                  <p className="mt-1.5 font-medium text-[10px] text-primary">
+                    {photoStatus}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="group relative">
+                <input
+                  accept="image/*"
+                  className="hidden"
+                  id="photoInput"
+                  multiple
+                  onChange={onPhotosChange}
+                  type="file"
+                />
+                <label
+                  className="flex h-20 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-border border-dashed bg-muted/30 px-4 transition-colors hover:border-primary/50 hover:bg-muted/50"
+                  htmlFor="photoInput"
+                >
+                  <div className="rounded-full bg-background p-1.5 shadow-sm ring-1 ring-border transition-colors group-hover:ring-primary/20">
+                    <Images className="size-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
+                  </div>
+                  <span className="text-center font-medium text-muted-foreground text-xs transition-colors group-hover:text-foreground">
+                    Click to select photos
+                  </span>
+                </label>
+              </div>
             )}
           </div>
 
-          {/* Export Quality */}
-          <div className="space-y-2">
+          {/* Clear All — only shown when there's something to clear */}
+          {hasAnything && (
+            <Button
+              className="w-full"
+              onClick={clearAll}
+              size="sm"
+              variant="outline"
+            >
+              <RotateCcw className="size-3.5" />
+              Clear All
+            </Button>
+          )}
+
+          {/* Export Quality — desktop only (also in mobile footer) */}
+          <div className="hidden space-y-2 lg:block">
             <Label>Export Quality</Label>
             <Select
               onValueChange={(v) => setExportQuality(v as ExportQuality)}
@@ -133,8 +279,8 @@ export function FramerPage() {
           </div>
         </div>
 
-        {/* Export Button */}
-        <div className="mt-4 space-y-3 border-t pt-4">
+        {/* Export Button — desktop only */}
+        <div className="mt-4 hidden space-y-3 border-t pt-4 lg:block">
           <Button
             className="w-full"
             disabled={uiState.downloadDisabled}
@@ -153,44 +299,112 @@ export function FramerPage() {
       </aside>
 
       {/* Preview Area */}
-      <main className="flex-1 overflow-auto p-4 sm:p-6">
-        <div className="grid h-full gap-6 lg:grid-cols-2">
-          {/* Portrait Preview */}
-          <PreviewPanel
-            frameSrc={uiState.frameSrc}
-            isLoading={uiState.portrait.isLoading}
-            label="Portrait"
-            meta={uiState.portrait.meta}
-            navDisabled={uiState.portrait.navDisabled}
-            onNext={() => cyclePreview("portrait", 1)}
-            onPanChange={setPortraitPan}
-            onPrev={() => cyclePreview("portrait", -1)}
-            onScaleChange={setPortraitScale}
-            pan={state.settings.portrait.pan}
-            photoStyle={uiState.portrait.style}
-            photoUrl={uiState.portrait.photoUrl}
-            scale={state.settings.portrait.scale}
-          />
+      <main className="relative flex-1 overflow-auto">
+        <div className="p-4 pb-24 sm:p-6 sm:pb-28 lg:pb-6" ref={previewRef}>
+          {activePanels.length > 0 ? (
+            <div
+              className={cn(
+                "grid h-full gap-6",
+                activePanels.length === 1
+                  ? "mx-auto max-w-3xl lg:grid-cols-1"
+                  : activePanels.length === 2
+                    ? "lg:grid-cols-2"
+                    : "lg:grid-cols-2 xl:grid-cols-3",
+              )}
+            >
+              {activePanels.map((panel) => (
+                <PreviewPanel
+                  frameSrc={uiState.frameSrc}
+                  isLoading={panel.state.isLoading}
+                  key={panel.key}
+                  label={panel.label}
+                  meta={panel.state.meta}
+                  navDisabled={panel.state.navDisabled}
+                  onNext={() =>
+                    cyclePreview(
+                      panel.key as "portrait" | "landscape" | "square",
+                      1,
+                    )
+                  }
+                  onPanChange={panel.onPanChange}
+                  onPrev={() =>
+                    cyclePreview(
+                      panel.key as "portrait" | "landscape" | "square",
+                      -1,
+                    )
+                  }
+                  onScaleChange={panel.onScaleChange}
+                  pan={panel.pan}
+                  photoStyle={panel.state.style}
+                  photoUrl={panel.state.photoUrl}
+                  scale={panel.scale}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
+              <div className="rounded-full bg-muted p-4">
+                <Images className="size-8 text-muted-foreground/60" />
+              </div>
+              <p className="font-medium text-sm">No previews to show</p>
+              <p className="max-w-56 text-center text-xs">
+                Upload a frame and photos to see previews for each orientation
+              </p>
+            </div>
+          )}
+        </div>
 
-          {/* Landscape Preview */}
-          <PreviewPanel
-            frameSrc={uiState.frameSrc}
-            isLoading={uiState.landscape.isLoading}
-            label="Landscape"
-            meta={uiState.landscape.meta}
-            navDisabled={uiState.landscape.navDisabled}
-            onNext={() => cyclePreview("landscape", 1)}
-            onPanChange={setLandscapePan}
-            onPrev={() => cyclePreview("landscape", -1)}
-            onScaleChange={setLandscapeScale}
-            pan={state.settings.landscape.pan}
-            photoStyle={uiState.landscape.style}
-            photoUrl={uiState.landscape.photoUrl}
-            scale={state.settings.landscape.scale}
-          />
+        {/* Mobile sticky footer — Export Quality + Export Button */}
+        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t bg-card/90 px-4 py-3 shadow-lg backdrop-blur-md lg:hidden">
+          <div className="flex-1">
+            <Select
+              onValueChange={(v) => setExportQuality(v as ExportQuality)}
+              value={state.exportQuality}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            className="flex-1"
+            disabled={uiState.downloadDisabled}
+            onClick={downloadZip}
+            size="lg"
+          >
+            <Download className="size-4" />
+            {downloadStatus || "Export"}
+          </Button>
         </div>
       </main>
     </div>
+  );
+}
+
+function PhotoThumb({ file }: { file: File }) {
+  const urlRef = useRef<string | null>(null);
+  if (!urlRef.current) {
+    urlRef.current = URL.createObjectURL(file);
+  }
+
+  useEffect(() => {
+    const url = urlRef.current;
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, []);
+
+  return (
+    <img
+      alt={file.name}
+      className="size-10 rounded-md border border-border object-cover shadow-sm"
+      src={urlRef.current ?? ""}
+    />
   );
 }
 
@@ -340,7 +554,7 @@ function PreviewPanel({
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="fade-in flex animate-in flex-col gap-3 duration-300">
       {/* Navigation arrows + label */}
       <div className="flex items-center justify-center gap-3">
         <Button

@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import {
   calculateTargetSize,
   type Dimensions,
+  getOrientationType,
   type OrientationType,
 } from "../../../lib/image";
 
@@ -15,6 +16,7 @@ interface RenderJob {
   settings: {
     portrait: { scale: number; pan: { x: number; y: number } };
     landscape: { scale: number; pan: { x: number; y: number } };
+    square: { scale: number; pan: { x: number; y: number } };
   };
   exportScale: number;
 }
@@ -51,8 +53,10 @@ self.onmessage = async (e: MessageEvent<RenderJob>) => {
       height: photo.bitmap.height,
     };
 
-    const orientationType: OrientationType =
-      photoDims.height > photoDims.width ? "portrait" : "landscape";
+    const orientationType: OrientationType = getOrientationType(
+      photoDims.width,
+      photoDims.height,
+    );
 
     const currentSettings = settings[orientationType];
 

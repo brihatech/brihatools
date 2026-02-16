@@ -25,6 +25,7 @@ interface RenderParams {
 export interface PreviewUiState {
   portrait: PreviewOrientationState;
   landscape: PreviewOrientationState;
+  square: PreviewOrientationState;
   downloadDisabled: boolean;
   frameSrc?: string;
   frameDims?: Dimensions;
@@ -61,6 +62,13 @@ export const getPreviewState = ({
       index: 0,
       navDisabled: true,
     },
+    square: {
+      meta: "",
+      isLoading: false,
+      count: 0,
+      index: 0,
+      navDisabled: true,
+    },
     downloadDisabled: true,
   };
 
@@ -84,7 +92,7 @@ export const getPreviewState = ({
     const isTypeLoading =
       matches.length === 0 && state.photos.length > 0 && pendingCount > 0;
 
-    const out = type === "portrait" ? result.portrait : result.landscape;
+    const out = result[type];
     out.count = matches.length;
     out.navDisabled = navDisabled;
 

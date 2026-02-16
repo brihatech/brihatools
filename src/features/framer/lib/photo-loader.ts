@@ -1,3 +1,5 @@
+import { getOrientationType } from "@/lib/image";
+
 import type { PhotoFramerState, PhotoItem, PreviewOrientation } from "./state";
 
 const BATCH_SIZE = 3;
@@ -16,6 +18,7 @@ export interface PhotoManager {
   getFrameBitmap: () => ImageBitmap | null;
   getPendingCount: () => number;
   anyReady: () => boolean;
+  clearAll: () => void;
 }
 
 export const createPhotoManager = (
@@ -25,11 +28,11 @@ export const createPhotoManager = (
   let currentToken = 0;
 
   const cleanupPhotos = () => {
-    state.photos.forEach((photo) => {
+    for (const photo of state.photos) {
       URL.revokeObjectURL(photo.url);
       photo.bitmap?.close();
       photo.bitmapPromise = undefined;
-    });
+    }
   };
 
   const handleSelection = (files: FileList | null) => {
@@ -85,8 +88,10 @@ export const createPhotoManager = (
     if (!photo.bitmapPromise) {
       photo.bitmapPromise = createImageBitmap(photo.file).then((bitmap) => {
         photo.bitmap = bitmap;
-        photo.orientation =
-          bitmap.height > bitmap.width ? "portrait" : "landscape";
+        photo.orientation = getOrientationType(
+          bitmap.width,
+          bitmap.height,
+        ) as PreviewOrientation;
         photo.bitmapPromise = undefined;
         return bitmap;
       });
@@ -99,6 +104,7 @@ export const createPhotoManager = (
     const grouped: Record<PreviewOrientation, PhotoItem[]> = {
       portrait: [],
       landscape: [],
+      square: [],
     };
 
     for (const photo of state.photos) {
@@ -113,6 +119,15 @@ export const createPhotoManager = (
 
   const anyReady = () => state.photos.some((p) => Boolean(p.bitmap));
 
+  const clearAll = () => {
+    cleanupPhotos();
+    currentToken++;
+    state.photos = [];
+    hooks.onStatus("No photos selected");
+    hooks.onPhotosChanged();
+    hooks.requestRender();
+  };
+
   return {
     handleSelection,
     ensurePhotoReady,
@@ -121,5 +136,7 @@ export const createPhotoManager = (
     getFrameBitmap: () => state.frameBitmap,
     getPendingCount,
     anyReady,
+    clearAll,
   };
 };
+

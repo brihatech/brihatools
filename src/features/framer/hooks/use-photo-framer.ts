@@ -36,6 +36,12 @@ export function usePhotoFramer() {
   const [photoStatus, setPhotoStatus] = useState("No photos selected");
   const [downloadStatus, setDownloadStatus] = useState("");
 
+  // Track frame file for thumbnail preview
+  const [frameFile, setFrameFile] = useState<File | null>(null);
+  const [frameUrl, setFrameUrl] = useState<string | null>(null);
+  // Track photo files for thumbnail preview
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+
   const [uiState, setUiState] = useState<PreviewUiState>({
     downloadDisabled: true,
     landscape: {
@@ -50,6 +56,13 @@ export function usePhotoFramer() {
       index: 0,
       isLoading: false,
       meta: "Upload frame & portrait photos",
+      navDisabled: true,
+    },
+    square: {
+      count: 0,
+      index: 0,
+      isLoading: false,
+      meta: "Upload frame & square photos",
       navDisabled: true,
     },
   });
@@ -97,25 +110,56 @@ export function usePhotoFramer() {
       const file = event.target.files?.[0];
       if (!file) {
         setFrameStatus("No frame selected");
+        setFrameFile(null);
+        if (frameUrl) URL.revokeObjectURL(frameUrl);
+        setFrameUrl(null);
         setState((prev) => ({ ...prev, frame: null, frameBitmap: null }));
         requestPreview();
         return;
       }
+
+      // Create a URL for the thumbnail preview
+      const thumbUrl = URL.createObjectURL(file);
+      if (frameUrl) URL.revokeObjectURL(frameUrl);
+      setFrameFile(file);
+      setFrameUrl(thumbUrl);
 
       const name = await loadFrame(file, stateRef.current);
       setState({ ...stateRef.current });
       setFrameStatus(name ?? "No frame selected");
       requestPreview();
     },
-    [requestPreview, setState],
+    [requestPreview, setState, frameUrl],
   );
+
+  const clearFrame = useCallback(() => {
+    if (frameUrl) URL.revokeObjectURL(frameUrl);
+    setFrameFile(null);
+    setFrameUrl(null);
+    setFrameStatus("No frame selected");
+    setState((prev) => ({ ...prev, frame: null, frameBitmap: null }));
+    // Reset the file input
+    const input = document.getElementById("frameInput") as HTMLInputElement;
+    if (input) input.value = "";
+    requestPreview();
+  }, [frameUrl, requestPreview, setState]);
 
   const onPhotosChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      photoManagerRef.current?.handleSelection(event.target.files);
+      const files = event.target.files;
+      setPhotoFiles(Array.from(files ?? []));
+      photoManagerRef.current?.handleSelection(files);
     },
     [],
   );
+
+  const clearPhotos = useCallback(() => {
+    setPhotoFiles([]);
+    photoManagerRef.current?.clearAll();
+    // Reset the file input
+    const input = document.getElementById("photoInput") as HTMLInputElement;
+    if (input) input.value = "";
+  }, []);
 
   const cyclePreview = useCallback(
     (type: PreviewOrientation, delta: number) => {
@@ -192,6 +236,63 @@ export function usePhotoFramer() {
     [requestPreview, setState],
   );
 
+  const setSquareScale = useCallback(
+    (value: number) => {
+      setState((prev) => ({
+        ...prev,
+        settings: {
+          ...prev.settings,
+          square: { ...prev.settings.square, scale: value },
+        },
+      }));
+      requestPreview();
+    },
+    [requestPreview, setState],
+  );
+
+  const setSquarePan = useCallback(
+    (pan: { x: number; y: number }) => {
+      setState((prev) => ({
+        ...prev,
+        settings: {
+          ...prev.settings,
+          square: { ...prev.settings.square, pan },
+        },
+      }));
+      requestPreview();
+    },
+    [requestPreview, setState],
+  );
+
+  const clearAll = useCallback(() => {
+    // Clear frame
+    if (frameUrl) URL.revokeObjectURL(frameUrl);
+    setFrameFile(null);
+    setFrameUrl(null);
+    setFrameStatus("No frame selected");
+
+    // Clear photos
+    setPhotoFiles([]);
+    photoManagerRef.current?.clearAll();
+
+    // Reset state
+    setState(createInitialState());
+    setPhotoStatus("No photos selected");
+    setDownloadStatus("");
+
+    // Reset file inputs
+    const frameInput = document.getElementById(
+      "frameInput",
+    ) as HTMLInputElement;
+    if (frameInput) frameInput.value = "";
+    const photoInput = document.getElementById(
+      "photoInput",
+    ) as HTMLInputElement;
+    if (photoInput) photoInput.value = "";
+
+    requestPreview();
+  }, [frameUrl, requestPreview, setState]);
+
   const downloadZip = useCallback(async () => {
     const pm = photoManagerRef.current;
     if (!pm) return;
@@ -207,18 +308,26 @@ export function usePhotoFramer() {
   }, [requestPreview, setState]);
 
   return {
+    clearAll,
+    clearFrame,
+    clearPhotos,
     cyclePreview,
     downloadStatus,
     downloadZip,
+    frameFile,
     frameStatus,
+    frameUrl,
     onFrameChange,
     onPhotosChange,
+    photoFiles,
     photoStatus,
     setExportQuality,
     setLandscapePan,
     setLandscapeScale,
     setPortraitPan,
     setPortraitScale,
+    setSquarePan,
+    setSquareScale,
     state,
     uiState,
   };
