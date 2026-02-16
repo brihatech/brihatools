@@ -1,4 +1,10 @@
-import { FileText, Image, LayoutPanelTop, Plus } from "lucide-react";
+import {
+  FileText,
+  Image,
+  LayoutPanelTop,
+  Plus,
+  UserCircle,
+} from "lucide-react";
 import { Link } from "react-router";
 
 import {
@@ -26,6 +32,12 @@ const TOOLS = [
     href: "/nepali-pdf",
     icon: FileText,
     title: "Nepali PDF Table Extractor",
+  },
+  {
+    description: "Add a frame overlay to your Facebook profile picture",
+    href: "/fb-frame",
+    icon: UserCircle,
+    title: "FB Profile Frame",
   },
 ] as const;
 

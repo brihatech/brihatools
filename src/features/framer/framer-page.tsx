@@ -322,6 +322,7 @@ export function FramerPage() {
                   isLoading={panel.state.isLoading}
                   key={panel.key}
                   label={panel.label}
+                  maxScale={panel.maxScale}
                   meta={panel.state.meta}
                   navDisabled={panel.state.navDisabled}
                   onNext={() =>
@@ -342,7 +343,6 @@ export function FramerPage() {
                   photoStyle={panel.state.style}
                   photoUrl={panel.state.photoUrl}
                   scale={panel.scale}
-                  maxScale={panel.maxScale}
                 />
               ))}
             </div>

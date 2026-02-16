@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  type BackgroundRemovalQuality,
-  removeBackground as removeBackgroundImage,
-} from "../lib/background";
+import { type BackgroundRemovalQuality } from "../lib/background";
 import { computeContainedRect, generatePoster } from "../lib/canvas";
 import {
   getDefaultPosterCategoryForHostname,
@@ -11,6 +8,7 @@ import {
   type PosterRealCategory,
 } from "../lib/category";
 import { DEFAULT_FRAME_SRC, FRAMES, type FrameConfig } from "../lib/frames";
+import { useBackgroundRemoval } from "./use-background-removal";
 
 const TEXT_SCALE_STEP = 0.05;
 const MAX_DESIGNATIONS = 5;
@@ -257,6 +255,23 @@ export function usePosterBuilder() {
     ],
   );
 
+  const {
+    processedImage,
+    isProcessing: isRemoveBgProcessing,
+    removeBg: triggerRemoveBg,
+    cleanup: cleanupBgRemoval,
+  } = useBackgroundRemoval();
+
+  useEffect(() => {
+    if (processedImage) {
+      setPhotoSrc(processedImage);
+    }
+  }, [processedImage]);
+
+  useEffect(() => {
+    setRemoveBgBusy(isRemoveBgProcessing);
+  }, [isRemoveBgProcessing]);
+
   const onPhotoFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
@@ -265,6 +280,8 @@ export function usePosterBuilder() {
       if (currentPhotoUrlRef.current) {
         URL.revokeObjectURL(currentPhotoUrlRef.current);
       }
+
+      cleanupBgRemoval();
       const url = URL.createObjectURL(file);
       currentPhotoUrlRef.current = url;
 
@@ -279,7 +296,7 @@ export function usePosterBuilder() {
       setOffsetY(0);
       setSelectedTextId("photo");
     },
-    [],
+    [cleanupBgRemoval],
   );
 
   const clearPhoto = useCallback(() => {
@@ -288,6 +305,7 @@ export function usePosterBuilder() {
       URL.revokeObjectURL(currentPhotoUrlRef.current);
       currentPhotoUrlRef.current = null;
     }
+    cleanupBgRemoval();
     if (photoUploadRef.current) {
       photoUploadRef.current.value = "";
     }
@@ -299,7 +317,7 @@ export function usePosterBuilder() {
     setRemoveBgMessage("");
     setOffsetX(0);
     setOffsetY(0);
-  }, []);
+  }, [cleanupBgRemoval]);
 
   const removeBackground = useCallback(
     async (quality: BackgroundRemovalQuality = "standard") => {
@@ -308,37 +326,18 @@ export function usePosterBuilder() {
 
       removeBgRunIdRef.current += 1;
       const runId = removeBgRunIdRef.current;
-      let timeoutHandle: number | undefined;
       const isHq = quality === "hq";
 
-      setRemoveBgBusy(true);
       setRemoveBgMessage(isHq ? "Downloading HD model..." : "");
 
       await new Promise<void>((r) => {
         window.setTimeout(() => r(), 0);
       });
-      await new Promise<void>((r) => {
-        window.requestAnimationFrame(() => r());
-      });
 
       try {
-        const processedSource = await Promise.race([
-          removeBackgroundImage(photoSrc, quality),
-          new Promise<string>((_, reject) => {
-            timeoutHandle = window.setTimeout(() => {
-              reject(new Error("Background removal timed out."));
-            }, 45000);
-          }),
-        ]);
-
+        await triggerRemoveBg(photoSrc, quality);
         if (runId !== removeBgRunIdRef.current) return;
 
-        if (currentPhotoUrlRef.current) {
-          URL.revokeObjectURL(currentPhotoUrlRef.current);
-          currentPhotoUrlRef.current = null;
-        }
-
-        setPhotoSrc(processedSource);
         setRemoveBgQualityUsed(quality);
         setRemoveBgMessage(
           isHq ? "Background removed (HD)" : "Background removed",
@@ -352,14 +351,9 @@ export function usePosterBuilder() {
               : "Background removal failed.",
           );
         }
-      } finally {
-        if (timeoutHandle) window.clearTimeout(timeoutHandle);
-        if (runId === removeBgRunIdRef.current) {
-          setRemoveBgBusy(false);
-        }
       }
     },
-    [hasPhoto, photoSrc, removeBgQualityUsed],
+    [hasPhoto, photoSrc, removeBgQualityUsed, triggerRemoveBg],
   );
 
   const exportPoster = useCallback(async () => {

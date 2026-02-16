@@ -139,4 +139,3 @@ export const createPhotoManager = (
     clearAll,
   };
 };
-
