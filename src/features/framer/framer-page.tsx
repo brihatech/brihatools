@@ -84,6 +84,7 @@ export function FramerPage() {
     pan: { x: number; y: number };
     onScaleChange: (v: number) => void;
     onPanChange: (v: { x: number; y: number }) => void;
+    maxScale?: number;
   }> = [];
 
   if (uiState.portrait.count > 0) {
@@ -95,6 +96,7 @@ export function FramerPage() {
       pan: state.settings.portrait.pan,
       onScaleChange: setPortraitScale,
       onPanChange: setPortraitPan,
+      maxScale: uiState.portrait.maxScale,
     });
   }
   if (uiState.landscape.count > 0) {
@@ -106,6 +108,7 @@ export function FramerPage() {
       pan: state.settings.landscape.pan,
       onScaleChange: setLandscapeScale,
       onPanChange: setLandscapePan,
+      maxScale: uiState.landscape.maxScale,
     });
   }
   if (uiState.square.count > 0) {
@@ -117,6 +120,7 @@ export function FramerPage() {
       pan: state.settings.square.pan,
       onScaleChange: setSquareScale,
       onPanChange: setSquarePan,
+      maxScale: uiState.square.maxScale,
     });
   }
 
@@ -338,6 +342,7 @@ export function FramerPage() {
                   photoStyle={panel.state.style}
                   photoUrl={panel.state.photoUrl}
                   scale={panel.scale}
+                  maxScale={panel.maxScale}
                 />
               ))}
             </div>
@@ -422,6 +427,7 @@ function PreviewPanel({
   photoStyle,
   photoUrl,
   scale,
+  maxScale,
 }: {
   frameSrc?: string;
   isLoading: boolean;
@@ -436,6 +442,7 @@ function PreviewPanel({
   photoStyle?: CSSProperties;
   photoUrl?: string;
   scale: number;
+  maxScale?: number;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<{
@@ -453,7 +460,10 @@ function PreviewPanel({
   const canInteract = Boolean(frameSrc && photoUrl && photoStyle) && !isLoading;
 
   const clampPan = (value: number) => Math.max(-2, Math.min(2, value));
-  const clampScale = (value: number) => Math.max(0.1, Math.min(5, value));
+  const clampScale = (value: number) => {
+    const max = maxScale ? Math.min(5, maxScale) : 5;
+    return Math.max(0.1, Math.min(max, value));
+  };
   const pinch = usePinch(
     scale,
     (v) => onScaleChange(clampScale(v)),
@@ -522,7 +532,7 @@ function PreviewPanel({
 
     if (active.mode === "pan") {
       onPanChange({
-        x: clampPan(active.startPanX + dx / frameRect.width),
+        x: 0,
         y: clampPan(active.startPanY + dy / frameRect.height),
       });
       return;

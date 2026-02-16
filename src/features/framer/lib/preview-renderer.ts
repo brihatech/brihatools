@@ -39,6 +39,7 @@ export interface PreviewOrientationState {
   navDisabled: boolean;
   photoUrl?: string;
   style?: CSSProperties;
+  maxScale?: number;
 }
 
 export const getPreviewState = ({
@@ -120,6 +121,19 @@ export const getPreviewState = ({
         settings: state.settings[type],
       });
       out.meta = `${matchedPhoto.name} • ${type} (${normalizedIndex + 1}/${matches.length})`;
+
+      // Calculate max scale to prevent photo width from exceeding frame width
+      const frameW = state.frame.naturalWidth;
+      const frameH = state.frame.naturalHeight;
+      const photoW = photoBitmap.width;
+      const photoH = photoBitmap.height;
+      const isPortrait = photoH > photoW;
+
+      if (isPortrait) {
+        out.maxScale = (frameW / frameH) * (photoH / photoW);
+      } else {
+        out.maxScale = 1;
+      }
     } else {
       if (isTypeLoading) {
         out.isLoading = true;
