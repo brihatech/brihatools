@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 import {
   calculateTargetSize,
   type Dimensions,
@@ -15,45 +17,35 @@ import {
 
 interface RenderParams {
   state: PhotoFramerState;
-  portraitCanvas: HTMLCanvasElement;
-  landscapeCanvas: HTMLCanvasElement;
   grouped: Record<PreviewOrientation, PhotoItem[]>;
   pendingCount: number;
   anyReady: () => boolean;
 }
 
 export interface PreviewUiState {
-  portrait: {
-    meta: string;
-    isLoading: boolean;
-    count: number;
-    index: number;
-    navDisabled: boolean;
-  };
-  landscape: {
-    meta: string;
-    isLoading: boolean;
-    count: number;
-    index: number;
-    navDisabled: boolean;
-  };
+  portrait: PreviewOrientationState;
+  landscape: PreviewOrientationState;
   downloadDisabled: boolean;
+  frameSrc?: string;
+  frameDims?: Dimensions;
 }
 
-interface RenderContext {
-  frame: HTMLImageElement;
-  photo: ImageBitmap;
-  settings: CompositionSettings;
+export interface PreviewOrientationState {
+  meta: string;
+  isLoading: boolean;
+  count: number;
+  index: number;
+  navDisabled: boolean;
+  photoUrl?: string;
+  style?: CSSProperties;
 }
 
-export const renderPreviews = ({
+export const getPreviewState = ({
   state,
-  portraitCanvas,
-  landscapeCanvas,
   grouped,
   pendingCount,
   anyReady,
-}: RenderParams) => {
+}: RenderParams): PreviewUiState => {
   const result: PreviewUiState = {
     portrait: {
       meta: "",
@@ -73,32 +65,24 @@ export const renderPreviews = ({
   };
 
   if (!state.frame) {
-    [portraitCanvas, landscapeCanvas].forEach((canvas) => {
-      canvas.width = 1;
-      canvas.height = 1;
-      canvas.getContext("2d")?.clearRect(0, 0, 1, 1);
-    });
-
     result.portrait.meta = "Upload a frame to begin";
     result.landscape.meta = "Upload a frame to begin";
     result.downloadDisabled = true;
     return result;
   }
 
-  for (const type of PREVIEW_ORIENTATIONS) {
-    const canvas = type === "portrait" ? portraitCanvas : landscapeCanvas;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) continue;
+  result.frameSrc = state.frame.src;
+  result.frameDims = {
+    width: state.frame.naturalWidth,
+    height: state.frame.naturalHeight,
+  };
 
+  for (const type of PREVIEW_ORIENTATIONS) {
     const matches = grouped[type];
     const navDisabled = matches.length <= 1;
 
     const isTypeLoading =
       matches.length === 0 && state.photos.length > 0 && pendingCount > 0;
-
-    canvas.width = state.frame.naturalWidth;
-    canvas.height = state.frame.naturalHeight;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const out = type === "portrait" ? result.portrait : result.landscape;
     out.count = matches.length;
@@ -117,19 +101,18 @@ export const renderPreviews = ({
       if (!photoBitmap) {
         out.isLoading = true;
         out.meta = `Loading ${matchedPhoto.name}...`;
-        ctx.drawImage(state.frame, 0, 0);
         continue;
       }
 
       out.isLoading = false;
-      compose(ctx, {
+      out.photoUrl = matchedPhoto.url;
+      out.style = calculatePreviewStyle({
         frame: state.frame,
         photo: photoBitmap,
         settings: state.settings[type],
       });
       out.meta = `${matchedPhoto.name} • ${type} (${normalizedIndex + 1}/${matches.length})`;
     } else {
-      ctx.drawImage(state.frame, 0, 0);
       if (isTypeLoading) {
         out.isLoading = true;
         out.meta = `Loading ${type} photos...`;
@@ -147,16 +130,23 @@ export const renderPreviews = ({
   return result;
 };
 
-const compose = (ctx: CanvasRenderingContext2D, data: RenderContext) => {
+export const calculatePreviewStyle = ({
+  frame,
+  photo,
+  settings,
+}: {
+  frame: HTMLImageElement;
+  photo: ImageBitmap;
+  settings: CompositionSettings;
+}): CSSProperties => {
   const frameDims: Dimensions = {
-    width: data.frame.naturalWidth,
-    height: data.frame.naturalHeight,
+    width: frame.naturalWidth,
+    height: frame.naturalHeight,
   };
 
-  const bitmap = data.photo;
   const orientedDims = {
-    width: bitmap.width,
-    height: bitmap.height,
+    width: photo.width,
+    height: photo.height,
   };
   const orientationType: OrientationType =
     orientedDims.height > orientedDims.width ? "portrait" : "landscape";
@@ -164,20 +154,30 @@ const compose = (ctx: CanvasRenderingContext2D, data: RenderContext) => {
   const { width: targetWidth, height: targetHeight } = calculateTargetSize(
     frameDims,
     orientedDims,
-    data.settings.scale,
+    settings.scale,
     orientationType,
   );
 
   const centerX = (frameDims.width - targetWidth) / 2;
   const centerY = (frameDims.height - targetHeight) / 2;
-  const offsetValue = data.settings.offset * frameDims.height;
 
-  ctx.drawImage(data.frame, 0, 0, frameDims.width, frameDims.height);
-  ctx.drawImage(
-    bitmap,
-    centerX,
-    centerY + offsetValue,
-    targetWidth,
-    targetHeight,
-  );
+  const panX = settings.pan.x * frameDims.width;
+  const panY = settings.pan.y * frameDims.height;
+
+  // Convert to percentages
+  const left = ((centerX + panX) / frameDims.width) * 100;
+  const top = ((centerY + panY) / frameDims.height) * 100;
+  const width = (targetWidth / frameDims.width) * 100;
+  const height = (targetHeight / frameDims.height) * 100;
+
+  return {
+    position: "absolute",
+    left: `${left}%`,
+    top: `${top}%`,
+    width: `${width}%`,
+    height: `${height}%`,
+    objectFit: "fill",
+    zIndex: 10,
+    pointerEvents: "none",
+  };
 };

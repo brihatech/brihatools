@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { handleDownload } from "../lib/downloader";
 import { loadFrame } from "../lib/frame-loader";
 import { createPhotoManager, type PhotoManager } from "../lib/photo-loader";
-import { type PreviewUiState, renderPreviews } from "../lib/preview-renderer";
+import { getPreviewState, type PreviewUiState } from "../lib/preview-renderer";
 import {
   createInitialState,
   type ExportQuality,
@@ -13,9 +13,24 @@ import {
 } from "../lib/state";
 
 export function usePhotoFramer() {
-  const [state, setState] = useState<PhotoFramerState>(createInitialState);
+  const [state, setReactState] = useState<PhotoFramerState>(createInitialState);
   const stateRef = useRef(state);
-  stateRef.current = state;
+
+  const setState = useCallback(
+    (
+      action: PhotoFramerState | ((prev: PhotoFramerState) => PhotoFramerState),
+    ) => {
+      const next =
+        typeof action === "function"
+          ? (action as (prev: PhotoFramerState) => PhotoFramerState)(
+              stateRef.current,
+            )
+          : action;
+      stateRef.current = next;
+      setReactState(next);
+    },
+    [],
+  );
 
   const [frameStatus, setFrameStatus] = useState("No frame selected");
   const [photoStatus, setPhotoStatus] = useState("No photos selected");
@@ -39,8 +54,6 @@ export function usePhotoFramer() {
     },
   });
 
-  const portraitCanvasRef = useRef<HTMLCanvasElement>(null);
-  const landscapeCanvasRef = useRef<HTMLCanvasElement>(null);
   const photoManagerRef = useRef<PhotoManager | null>(null);
   const renderTimerRef = useRef<number | null>(null);
 
@@ -50,17 +63,13 @@ export function usePhotoFramer() {
     }
     renderTimerRef.current = requestAnimationFrame(() => {
       const s = stateRef.current;
-      const portraitCanvas = portraitCanvasRef.current;
-      const landscapeCanvas = landscapeCanvasRef.current;
       const pm = photoManagerRef.current;
-      if (!portraitCanvas || !landscapeCanvas || !pm) return;
+      if (!pm) return;
 
-      const result = renderPreviews({
+      const result = getPreviewState({
         anyReady: () => pm.anyReady(),
         grouped: pm.groupPhotosByOrientation(),
-        landscapeCanvas,
         pendingCount: pm.getPendingCount(),
-        portraitCanvas,
         state: s,
       });
 
@@ -81,7 +90,7 @@ export function usePhotoFramer() {
       requestRender: requestPreview,
     });
     requestPreview();
-  }, [requestPreview]);
+  }, [requestPreview, setState]);
 
   const onFrameChange = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,7 +107,7 @@ export function usePhotoFramer() {
       setFrameStatus(name ?? "No frame selected");
       requestPreview();
     },
-    [requestPreview],
+    [requestPreview, setState],
   );
 
   const onPhotosChange = useCallback(
@@ -117,12 +126,15 @@ export function usePhotoFramer() {
       });
       requestPreview();
     },
-    [requestPreview],
+    [requestPreview, setState],
   );
 
-  const setExportQuality = useCallback((quality: ExportQuality) => {
-    setState((prev) => ({ ...prev, exportQuality: quality }));
-  }, []);
+  const setExportQuality = useCallback(
+    (quality: ExportQuality) => {
+      setState((prev) => ({ ...prev, exportQuality: quality }));
+    },
+    [setState],
+  );
 
   const setPortraitScale = useCallback(
     (value: number) => {
@@ -135,21 +147,21 @@ export function usePhotoFramer() {
       }));
       requestPreview();
     },
-    [requestPreview],
+    [requestPreview, setState],
   );
 
-  const setPortraitOffset = useCallback(
-    (value: number) => {
+  const setPortraitPan = useCallback(
+    (pan: { x: number; y: number }) => {
       setState((prev) => ({
         ...prev,
         settings: {
           ...prev.settings,
-          portrait: { ...prev.settings.portrait, offset: value },
+          portrait: { ...prev.settings.portrait, pan },
         },
       }));
       requestPreview();
     },
-    [requestPreview],
+    [requestPreview, setState],
   );
 
   const setLandscapeScale = useCallback(
@@ -163,21 +175,21 @@ export function usePhotoFramer() {
       }));
       requestPreview();
     },
-    [requestPreview],
+    [requestPreview, setState],
   );
 
-  const setLandscapeOffset = useCallback(
-    (value: number) => {
+  const setLandscapePan = useCallback(
+    (pan: { x: number; y: number }) => {
       setState((prev) => ({
         ...prev,
         settings: {
           ...prev.settings,
-          landscape: { ...prev.settings.landscape, offset: value },
+          landscape: { ...prev.settings.landscape, pan },
         },
       }));
       requestPreview();
     },
-    [requestPreview],
+    [requestPreview, setState],
   );
 
   const downloadZip = useCallback(async () => {
@@ -192,22 +204,20 @@ export function usePhotoFramer() {
     });
 
     requestPreview();
-  }, [requestPreview]);
+  }, [requestPreview, setState]);
 
   return {
     cyclePreview,
     downloadStatus,
     downloadZip,
     frameStatus,
-    landscapeCanvasRef,
     onFrameChange,
     onPhotosChange,
     photoStatus,
-    portraitCanvasRef,
     setExportQuality,
-    setLandscapeOffset,
+    setLandscapePan,
     setLandscapeScale,
-    setPortraitOffset,
+    setPortraitPan,
     setPortraitScale,
     state,
     uiState,

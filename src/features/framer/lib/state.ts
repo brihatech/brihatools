@@ -11,7 +11,7 @@ export type PreviewOrientation = (typeof PREVIEW_ORIENTATIONS)[number];
 
 export interface CompositionSettings {
   scale: number;
-  offset: number;
+  pan: { x: number; y: number };
 }
 
 export interface PhotoItem {
@@ -54,8 +54,8 @@ export const createInitialState = (): PhotoFramerState => ({
     portrait: 0,
   },
   settings: {
-    landscape: { offset: 0, scale: 0.9 },
-    portrait: { offset: 0, scale: 0.7 },
+    landscape: { pan: { x: 0, y: 0 }, scale: 0.9 },
+    portrait: { pan: { x: 0, y: 0 }, scale: 0.7 },
   },
 });
 

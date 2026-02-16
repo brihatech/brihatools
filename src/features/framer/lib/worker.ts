@@ -13,8 +13,8 @@ interface RenderJob {
     bitmap: ImageBitmap;
   }>;
   settings: {
-    portrait: { scale: number; offset: number };
-    landscape: { scale: number; offset: number };
+    portrait: { scale: number; pan: { x: number; y: number } };
+    landscape: { scale: number; pan: { x: number; y: number } };
   };
   exportScale: number;
 }
@@ -66,7 +66,9 @@ self.onmessage = async (e: MessageEvent<RenderJob>) => {
 
     const centerX = (frameDims.width - targetWidth) / 2;
     const centerY = (frameDims.height - targetHeight) / 2;
-    const offsetValue = currentSettings.offset * frameDims.height;
+
+    const panX = currentSettings.pan.x * frameDims.width;
+    const panY = currentSettings.pan.y * frameDims.height;
 
     // Resize canvas to final export resolution
     canvas.width = Math.round(frameDims.width * exportScale);
@@ -86,8 +88,8 @@ self.onmessage = async (e: MessageEvent<RenderJob>) => {
     // Draw photo (never downscaled)
     ctx.drawImage(
       photo.bitmap,
-      centerX,
-      centerY + offsetValue,
+      centerX + panX,
+      centerY + panY,
       targetWidth,
       targetHeight,
     );

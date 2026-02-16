@@ -6,7 +6,7 @@ import {
   Images,
   Loader2,
 } from "lucide-react";
-import { useRef } from "react";
+import { type CSSProperties, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { usePinch } from "@/hooks/use-pinch";
 import { cn } from "@/lib/utils";
 
@@ -30,15 +29,13 @@ export function FramerPage() {
     downloadStatus,
     downloadZip,
     frameStatus,
-    landscapeCanvasRef,
     onFrameChange,
     onPhotosChange,
     photoStatus,
-    portraitCanvasRef,
     setExportQuality,
-    setLandscapeOffset,
+    setLandscapePan,
     setLandscapeScale,
-    setPortraitOffset,
+    setPortraitPan,
     setPortraitScale,
     state,
     uiState,
@@ -160,31 +157,35 @@ export function FramerPage() {
         <div className="grid h-full gap-6 lg:grid-cols-2">
           {/* Portrait Preview */}
           <PreviewPanel
-            canvasRef={portraitCanvasRef}
+            frameSrc={uiState.frameSrc}
             isLoading={uiState.portrait.isLoading}
             label="Portrait"
             meta={uiState.portrait.meta}
             navDisabled={uiState.portrait.navDisabled}
-            offset={state.settings.portrait.offset}
             onNext={() => cyclePreview("portrait", 1)}
-            onOffsetChange={setPortraitOffset}
+            onPanChange={setPortraitPan}
             onPrev={() => cyclePreview("portrait", -1)}
             onScaleChange={setPortraitScale}
+            pan={state.settings.portrait.pan}
+            photoStyle={uiState.portrait.style}
+            photoUrl={uiState.portrait.photoUrl}
             scale={state.settings.portrait.scale}
           />
 
           {/* Landscape Preview */}
           <PreviewPanel
-            canvasRef={landscapeCanvasRef}
+            frameSrc={uiState.frameSrc}
             isLoading={uiState.landscape.isLoading}
             label="Landscape"
             meta={uiState.landscape.meta}
             navDisabled={uiState.landscape.navDisabled}
-            offset={state.settings.landscape.offset}
             onNext={() => cyclePreview("landscape", 1)}
-            onOffsetChange={setLandscapeOffset}
+            onPanChange={setLandscapePan}
             onPrev={() => cyclePreview("landscape", -1)}
             onScaleChange={setLandscapeScale}
+            pan={state.settings.landscape.pan}
+            photoStyle={uiState.landscape.style}
+            photoUrl={uiState.landscape.photoUrl}
             scale={state.settings.landscape.scale}
           />
         </div>
@@ -194,53 +195,148 @@ export function FramerPage() {
 }
 
 function PreviewPanel({
-  canvasRef,
+  frameSrc,
   isLoading,
   label,
   meta,
   navDisabled,
-  offset,
+  pan,
   onNext,
-  onOffsetChange,
+  onPanChange,
   onPrev,
   onScaleChange,
+  photoStyle,
+  photoUrl,
   scale,
 }: {
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  frameSrc?: string;
   isLoading: boolean;
   label: string;
   meta: string;
   navDisabled: boolean;
-  offset: number;
+  pan: { x: number; y: number };
   onNext: () => void;
-  onOffsetChange: (v: number) => void;
+  onPanChange: (v: { x: number; y: number }) => void;
   onPrev: () => void;
   onScaleChange: (v: number) => void;
+  photoStyle?: CSSProperties;
+  photoUrl?: string;
   scale: number;
 }) {
-  const pinch = usePinch(scale, onScaleChange, !navDisabled && !isLoading);
-  const dragRef = useRef({ active: false, startOffset: 0, startX: 0 });
+  const frameRef = useRef<HTMLDivElement>(null);
+  const interactionRef = useRef<{
+    pointerId: number;
+    mode: "pan" | "scale";
+    signX: number;
+    signY: number;
+    startClientX: number;
+    startClientY: number;
+    startPanX: number;
+    startPanY: number;
+    startScale: number;
+  } | null>(null);
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (navDisabled || isLoading) return;
-    dragRef.current = { active: true, startOffset: offset, startX: e.clientX };
-    e.currentTarget.setPointerCapture(e.pointerId);
+  const canInteract = Boolean(frameSrc && photoUrl && photoStyle) && !isLoading;
+
+  const clampPan = (value: number) => Math.max(-2, Math.min(2, value));
+  const clampScale = (value: number) => Math.max(0.1, Math.min(5, value));
+  const pinch = usePinch(
+    scale,
+    (v) => onScaleChange(clampScale(v)),
+    canInteract,
+  );
+
+  const onPanPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!canInteract) return;
+    event.preventDefault();
+
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+
+    interactionRef.current = {
+      mode: "pan",
+      pointerId: event.pointerId,
+      signX: 0,
+      signY: 0,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startPanX: pan.x,
+      startPanY: pan.y,
+      startScale: scale,
+    };
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.current.active) return;
-    const deltaX = e.clientX - dragRef.current.startX;
-    // Map pixel movement to offset range (-1 to 1)
-    // Sensitivity: 500px = full range (approx)
-    const newOffset = dragRef.current.startOffset + deltaX / 500;
-    onOffsetChange(Math.max(-1, Math.min(1, newOffset)));
+  const onScaleHandlePointerDown = (
+    event: React.PointerEvent<HTMLDivElement>,
+    signX: number,
+    signY: number,
+  ) => {
+    if (!canInteract) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+
+    interactionRef.current = {
+      mode: "scale",
+      pointerId: event.pointerId,
+      signX,
+      signY,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startPanX: pan.x,
+      startPanY: pan.y,
+      startScale: scale,
+    };
   };
 
-  const onPointerUp = (e: React.PointerEvent) => {
-    dragRef.current.active = false;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
+  const onTransformPointerMove = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    const active = interactionRef.current;
+    const frameEl = frameRef.current;
+
+    if (!active || active.pointerId !== event.pointerId || !frameEl) return;
+
+    event.preventDefault();
+
+    const dx = event.clientX - active.startClientX;
+    const dy = event.clientY - active.startClientY;
+    const frameRect = frameEl.getBoundingClientRect();
+
+    if (active.mode === "pan") {
+      onPanChange({
+        x: clampPan(active.startPanX + dx / frameRect.width),
+        y: clampPan(active.startPanY + dy / frameRect.height),
+      });
+      return;
     }
+
+    const reference = Math.max(1, Math.min(frameRect.width, frameRect.height));
+    const normalizedDelta = (dx * active.signX + dy * active.signY) / reference;
+    onScaleChange(clampScale(active.startScale * (1 + normalizedDelta)));
+  };
+
+  const onTransformPointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    const active = interactionRef.current;
+    if (!active || active.pointerId !== event.pointerId) return;
+
+    const target = event.currentTarget;
+    if (target.hasPointerCapture(event.pointerId)) {
+      target.releasePointerCapture(event.pointerId);
+    }
+
+    interactionRef.current = null;
+  };
+
+  const onTransformLostPointerCapture = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    const active = interactionRef.current;
+    if (!active || active.pointerId !== event.pointerId) return;
+    interactionRef.current = null;
   };
 
   return (
@@ -248,7 +344,7 @@ function PreviewPanel({
       {/* Navigation arrows + label */}
       <div className="flex items-center justify-center gap-3">
         <Button
-          className="size-8"
+          className="size-9 sm:size-8"
           disabled={navDisabled}
           onClick={onPrev}
           size="icon"
@@ -261,7 +357,7 @@ function PreviewPanel({
           <span className="ml-2 text-muted-foreground text-xs">{meta}</span>
         </div>
         <Button
-          className="size-8"
+          className="size-9 sm:size-8"
           disabled={navDisabled}
           onClick={onNext}
           size="icon"
@@ -271,64 +367,108 @@ function PreviewPanel({
         </Button>
       </div>
 
-      {/* Canvas */}
-      <div
-        className="relative flex touch-none items-center justify-center overflow-hidden rounded-lg border bg-card p-3 shadow-sm"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onTouchEnd={pinch.onTouchEnd}
-        onTouchMove={pinch.onTouchMove}
-        onTouchStart={pinch.onTouchStart}
-      >
+      {/* Preview Container */}
+      <div className="relative flex touch-none items-center justify-center overflow-hidden rounded-lg border bg-card p-3 shadow-sm">
         {isLoading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/80 backdrop-blur-sm">
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-card/80 backdrop-blur-sm">
             <Loader2 className="size-8 animate-spin text-primary" />
           </div>
         )}
-        <canvas
-          className={cn(
-            "max-h-[50vh] max-w-full rounded-md object-contain lg:max-h-[60vh]",
-            !isLoading && "block",
-          )}
-          ref={canvasRef}
-        />
+
+        {frameSrc ? (
+          <div
+            className="pointer-events-none relative max-h-[50vh] max-w-full select-none lg:max-h-[60vh]"
+            ref={frameRef}
+          >
+            <img
+              alt="Frame"
+              className="block max-h-[50vh] w-auto max-w-full object-contain lg:max-h-[60vh]"
+              draggable={false}
+              src={frameSrc}
+            />
+            {photoUrl && photoStyle && (
+              <>
+                <img
+                  alt="Preview"
+                  draggable={false}
+                  src={photoUrl}
+                  style={photoStyle}
+                />
+                <div
+                  className={cn(
+                    "pointer-events-auto absolute touch-none border-2 border-primary shadow-sm",
+                    canInteract && "cursor-grab active:cursor-grabbing",
+                  )}
+                  onLostPointerCapture={onTransformLostPointerCapture}
+                  onPointerCancel={onTransformPointerEnd}
+                  onPointerDown={onPanPointerDown}
+                  onPointerMove={onTransformPointerMove}
+                  onPointerUp={onTransformPointerEnd}
+                  onTouchEnd={pinch.onTouchEnd}
+                  onTouchMove={pinch.onTouchMove}
+                  onTouchStart={pinch.onTouchStart}
+                  style={{
+                    ...photoStyle,
+                    pointerEvents: "auto",
+                    zIndex: 20,
+                  }}
+                >
+                  {/* Interactive Handles */}
+                  {[
+                    {
+                      cursor: "cursor-nwse-resize",
+                      pos: "-top-2.5 -left-2.5 sm:-top-1.5 sm:-left-1.5",
+                      signX: -1,
+                      signY: -1,
+                    },
+                    {
+                      cursor: "cursor-nesw-resize",
+                      pos: "-top-2.5 -right-2.5 sm:-top-1.5 sm:-right-1.5",
+                      signX: 1,
+                      signY: -1,
+                    },
+                    {
+                      cursor: "cursor-nesw-resize",
+                      pos: "-bottom-2.5 -left-2.5 sm:-bottom-1.5 sm:-left-1.5",
+                      signX: -1,
+                      signY: 1,
+                    },
+                    {
+                      cursor: "cursor-nwse-resize",
+                      pos: "-bottom-2.5 -right-2.5 sm:-bottom-1.5 sm:-right-1.5",
+                      signX: 1,
+                      signY: 1,
+                    },
+                  ].map(({ cursor, pos, signX, signY }) => (
+                    <div
+                      className={cn(
+                        "pointer-events-auto absolute size-5 touch-none rounded-full border border-primary bg-background shadow-sm transition-transform hover:scale-125 sm:size-3.5",
+                        pos,
+                        cursor,
+                      )}
+                      key={pos}
+                      onLostPointerCapture={onTransformLostPointerCapture}
+                      onPointerCancel={onTransformPointerEnd}
+                      onPointerDown={(event) =>
+                        onScaleHandlePointerDown(event, signX, signY)
+                      }
+                      onPointerMove={onTransformPointerMove}
+                      onPointerUp={onTransformPointerEnd}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="flex aspect-square w-full max-w-75 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <span className="text-sm">Upload a frame</span>
+          </div>
+        )}
       </div>
 
-      {/* Scale + Offset sliders */}
-      <div className="space-y-3 rounded-lg border bg-card p-3 shadow-sm">
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Scale</span>
-            <span className="font-medium tabular-nums">{scale.toFixed(2)}</span>
-          </div>
-          <Slider
-            max={1}
-            min={0.1}
-            onValueChange={([v]) => {
-              if (v !== undefined) onScaleChange(v);
-            }}
-            step={0.01}
-            value={[scale]}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Offset</span>
-            <span className="font-medium tabular-nums">
-              {offset.toFixed(2)}
-            </span>
-          </div>
-          <Slider
-            max={1}
-            min={-1}
-            onValueChange={([v]) => {
-              if (v !== undefined) onOffsetChange(v);
-            }}
-            step={0.01}
-            value={[offset]}
-          />
-        </div>
+      <div className="text-center text-muted-foreground text-xs">
+        Drag photo to move • Pinch or drag corners to resize
       </div>
     </div>
   );
