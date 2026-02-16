@@ -7,7 +7,7 @@ export function AppHeader() {
   const isHome = location.pathname === "/";
 
   return (
-    <nav className="flex h-14 shrink-0 items-center border-slate-800 border-b bg-slate-900 px-4 text-white sm:px-6">
+    <nav className="flex h-14 shrink-0 items-center border-b bg-background px-4 sm:px-6">
       <Link
         className="flex items-center gap-3 font-semibold text-lg tracking-tight"
         to="/"
@@ -19,7 +19,7 @@ export function AppHeader() {
       {!isHome && (
         <Link
           className={cn(
-            "ml-auto text-sm text-white/70 transition-colors hover:text-white",
+            "ml-auto text-muted-foreground text-sm transition-colors hover:text-foreground",
           )}
           to="/"
         >

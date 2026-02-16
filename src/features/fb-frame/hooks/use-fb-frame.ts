@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import { FB_FRAMES, type FbFrame } from "../lib/frames";
 
 export type FrameInfo = FbFrame & { aspectRatio: number };
@@ -30,7 +31,7 @@ async function loadAvailableFrames(): Promise<FrameInfo[]> {
       // Use natural dimensions if available, otherwise fallback to metadata default
       const width = img.naturalWidth || frame.width;
       const height = img.naturalHeight || frame.height;
-      
+
       return {
         ...frame,
         width,

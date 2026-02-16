@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { type BackgroundRemovalQuality } from "../lib/background";
+import type { BackgroundRemovalQuality } from "../lib/background";
 import { computeContainedRect, generatePoster } from "../lib/canvas";
 import {
   getDefaultPosterCategoryForHostname,

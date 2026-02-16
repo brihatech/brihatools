@@ -15,7 +15,12 @@ import { Slider } from "@/components/ui/slider";
 import { usePinch } from "@/hooks/use-pinch";
 import { cn } from "@/lib/utils";
 
-import { type FrameInfo, useFbFrame, MIN_SCALE, MAX_SCALE } from "./hooks/use-fb-frame";
+import {
+  type FrameInfo,
+  MAX_SCALE,
+  MIN_SCALE,
+  useFbFrame,
+} from "./hooks/use-fb-frame";
 
 export function FbFramePage() {
   const fb = useFbFrame();
