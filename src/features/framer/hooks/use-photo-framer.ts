@@ -69,6 +69,8 @@ export function usePhotoFramer() {
 
   const photoManagerRef = useRef<PhotoManager | null>(null);
   const renderTimerRef = useRef<number | null>(null);
+  const frameInputRef = useRef<HTMLInputElement | null>(null);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   const requestPreview = useCallback(() => {
     if (renderTimerRef.current) {
@@ -138,9 +140,9 @@ export function usePhotoFramer() {
     setFrameUrl(null);
     setFrameStatus("No frame selected");
     setState((prev) => ({ ...prev, frame: null, frameBitmap: null }));
-    // Reset the file input
-    const input = document.getElementById("frameInput") as HTMLInputElement;
-    if (input) input.value = "";
+    if (frameInputRef.current) {
+      frameInputRef.current.value = "";
+    }
     requestPreview();
   }, [frameUrl, requestPreview, setState]);
 
@@ -156,9 +158,9 @@ export function usePhotoFramer() {
   const clearPhotos = useCallback(() => {
     setPhotoFiles([]);
     photoManagerRef.current?.clearAll();
-    // Reset the file input
-    const input = document.getElementById("photoInput") as HTMLInputElement;
-    if (input) input.value = "";
+    if (photoInputRef.current) {
+      photoInputRef.current.value = "";
+    }
   }, []);
 
   const cyclePreview = useCallback(
@@ -280,15 +282,12 @@ export function usePhotoFramer() {
     setPhotoStatus("No photos selected");
     setDownloadStatus("");
 
-    // Reset file inputs
-    const frameInput = document.getElementById(
-      "frameInput",
-    ) as HTMLInputElement;
-    if (frameInput) frameInput.value = "";
-    const photoInput = document.getElementById(
-      "photoInput",
-    ) as HTMLInputElement;
-    if (photoInput) photoInput.value = "";
+    if (frameInputRef.current) {
+      frameInputRef.current.value = "";
+    }
+    if (photoInputRef.current) {
+      photoInputRef.current.value = "";
+    }
 
     requestPreview();
   }, [frameUrl, requestPreview, setState]);
@@ -315,11 +314,13 @@ export function usePhotoFramer() {
     downloadStatus,
     downloadZip,
     frameFile,
+    frameInputRef,
     frameStatus,
     frameUrl,
     onFrameChange,
     onPhotosChange,
     photoFiles,
+    photoInputRef,
     photoStatus,
     setExportQuality,
     setLandscapePan,

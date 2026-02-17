@@ -12,17 +12,17 @@ const TOOLS = [
   },
   {
     category: "design",
-    description: "Facebook profile frames",
-    href: "/fb-frame",
-    icon: UserCircle,
-    title: "FB Frame",
-  },
-  {
-    category: "design",
     description: "Create custom posters",
     href: "/poster",
     icon: LayoutPanelTop,
     title: "Poster Builder",
+  },
+  {
+    category: "design",
+    description: "Facebook profile frames",
+    href: "/fb-frame",
+    icon: UserCircle,
+    title: "FB Frame",
   },
   {
     category: "documents",
@@ -86,7 +86,7 @@ export function HomePage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {filteredTools.map((tool) => (
           <Link key={tool.href} to={tool.href}>
-            <div className="group flex items-center gap-3 rounded-lg border p-4 transition-all hover:border-primary hover:bg-accent">
+            <div className="group flex items-center gap-3 rounded-lg border p-4 transition-colors hover:border-primary hover:bg-accent">
               <tool.icon className="size-5 text-primary" />
               <div>
                 <div className="font-medium">{tool.title}</div>

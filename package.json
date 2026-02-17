@@ -47,6 +47,7 @@
     "react-dom": "^19.2.4",
     "react-router": "^7.13.0",
     "react-transliterate": "^1.1.9",
+    "sileo": "^0.1.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
     "xlsx": "^0.18.5"

@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { sileo } from "sileo";
+
+import { logError } from "@/lib/logger";
 
 import type { BackgroundRemovalQuality } from "../lib/background";
 import { computeContainedRect, generatePoster } from "../lib/canvas";
@@ -343,7 +346,10 @@ export function usePosterBuilder() {
           isHq ? "Background removed (HD)" : "Background removed",
         );
       } catch (error) {
-        console.error("Error during background removal:", error);
+        logError("poster.background.remove_failed", error, {
+          feature: "poster",
+          quality,
+        });
         if (runId === removeBgRunIdRef.current) {
           setRemoveBgMessage(
             isHq
@@ -363,7 +369,16 @@ export function usePosterBuilder() {
     const nameText = nameTextRef.current;
 
     if (!stage || !frameImage || !nameText) {
-      console.error("Missing elements for export");
+      logError("poster.export.missing_elements", undefined, {
+        feature: "poster",
+        hasFrameImage: Boolean(frameImage),
+        hasNameText: Boolean(nameText),
+        hasStage: Boolean(stage),
+      });
+      sileo.error({
+        title: "Export Unavailable",
+        description: "Poster isn’t ready yet. Please try again.",
+      });
       return;
     }
 
@@ -395,8 +410,14 @@ export function usePosterBuilder() {
         stage,
       });
     } catch (error) {
-      console.error("Error during export:", error);
+      logError("poster.export.failed", error, {
+        feature: "poster",
+      });
       setExportMessage("Export failed.");
+      sileo.error({
+        title: "Export Failed",
+        description: "Couldn’t generate the poster image. Please try again.",
+      });
     } finally {
       setExportBusy(false);
     }

@@ -7,7 +7,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,8 @@ import {
 export function FbFramePage() {
   const fb = useFbFrame();
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const hadPhotoRef = useRef(false);
 
   const pinch = usePinch(fb.scale, fb.setScale, fb.hasPhoto);
 
@@ -78,6 +80,21 @@ export function FbFramePage() {
     }
     interactionRef.current = null;
   };
+
+  useEffect(() => {
+    const hadPhoto = hadPhotoRef.current;
+    hadPhotoRef.current = fb.hasPhoto;
+
+    if (hadPhoto || !fb.hasPhoto) return;
+    if (!window.matchMedia("(max-width: 1023px)").matches) return;
+
+    window.setTimeout(() => {
+      previewScrollRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
+  }, [fb.hasPhoto]);
 
   const getPhotoStyle = (): React.CSSProperties | undefined => {
     if (!fb.selectedFrame || !fb.photoUrl) return undefined;
@@ -155,6 +172,7 @@ export function FbFramePage() {
                   </p>
                 </div>
                 <Button
+                  aria-label="Remove photo"
                   className="size-7 shrink-0"
                   onClick={fb.clearPhoto}
                   size="icon"
@@ -205,6 +223,7 @@ export function FbFramePage() {
               </Label>
               <div className="flex items-center gap-3">
                 <Button
+                  aria-label="Zoom out"
                   className="size-8 shrink-0"
                   onClick={() => fb.setScale(fb.scale - 0.1)}
                   size="icon"
@@ -221,6 +240,7 @@ export function FbFramePage() {
                   value={[fb.scale]}
                 />
                 <Button
+                  aria-label="Zoom in"
                   className="size-8 shrink-0"
                   onClick={() => fb.setScale(fb.scale + 0.1)}
                   size="icon"
@@ -262,14 +282,17 @@ export function FbFramePage() {
             ) : (
               <Download className="size-4" />
             )}
-            {fb.isExporting ? "Exporting..." : "Export JPG"}
+            {fb.isExporting ? "Downloading..." : "Download Photo"}
           </Button>
         </div>
       </aside>
 
       {/* Preview Area */}
       <main className="relative flex-1 overflow-auto">
-        <div className="flex min-h-full flex-col items-center justify-center p-4 pb-24 sm:p-6 sm:pb-28 lg:pb-6">
+        <div
+          className="flex min-h-full flex-col items-center justify-center p-4 pb-24 sm:p-6 sm:pb-28 lg:pb-6"
+          ref={previewScrollRef}
+        >
           {fb.selectedFrame ? (
             <div className="flex w-full max-w-lg flex-col items-center gap-4">
               {/* Preview Container */}
@@ -339,6 +362,7 @@ export function FbFramePage() {
               {fb.hasPhoto && (
                 <div className="flex w-full items-center gap-3 lg:hidden">
                   <Button
+                    aria-label="Zoom out"
                     className="size-10 shrink-0"
                     onClick={() => fb.setScale(fb.scale - 0.1)}
                     size="icon"
@@ -355,6 +379,7 @@ export function FbFramePage() {
                     value={[fb.scale]}
                   />
                   <Button
+                    aria-label="Zoom in"
                     className="size-10 shrink-0"
                     onClick={() => fb.setScale(fb.scale + 0.1)}
                     size="icon"

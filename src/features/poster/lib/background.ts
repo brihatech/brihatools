@@ -1,3 +1,5 @@
+import { logError } from "@/lib/logger";
+
 export type BackgroundRemovalQuality = "standard" | "hq";
 
 let worker: Worker | null = null;
@@ -29,7 +31,9 @@ const getWorker = () => {
     };
 
     worker.onerror = (e) => {
-      console.error("Worker error:", e);
+      logError("poster.background.worker_error", e, {
+        feature: "poster",
+      });
     };
   }
   return worker;

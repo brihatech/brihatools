@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { sileo } from "sileo";
+
+import { logError } from "@/lib/logger";
 
 import { FB_FRAMES, type FbFrame } from "../lib/frames";
 
@@ -207,8 +210,19 @@ export function useFbFrame() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      sileo.success({
+        title: "Export Complete",
+        description: "Framed profile photo downloaded as JPG.",
+      });
     } catch (error) {
-      console.error("Export failed:", error);
+      logError("fb_frame.export.failed", error, {
+        feature: "fb-frame",
+      });
+      sileo.error({
+        title: "Export Failed",
+        description: "Couldn’t generate the framed JPG. Please try again.",
+      });
     } finally {
       setState((prev) => ({ ...prev, isExporting: false }));
     }

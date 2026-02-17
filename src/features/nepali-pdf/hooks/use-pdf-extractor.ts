@@ -36,6 +36,7 @@ export function usePdfExtractor() {
   const lastTableRef = useRef<string[][] | null>(null);
   const lastBaseNameRef = useRef("table");
   const extractRunIdRef = useRef(0);
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
 
   const hasPdf = Boolean(pdfName);
   const exportEnabled = Boolean(
@@ -183,11 +184,13 @@ export function usePdfExtractor() {
     extractRunIdRef.current += 1;
     setBusy(false);
 
-    // Optional: clear the file input value if strictly needed,
-    // but usually better handled by key-reset or ref in the UI.
-    // For now, we just reset state.
-    const input = document.getElementById("pdfInput") as HTMLInputElement;
-    if (input) input.value = "";
+    if (pdfInputRef.current) {
+      pdfInputRef.current.value = "";
+    }
+  }, []);
+
+  const openPdfPicker = useCallback(() => {
+    pdfInputRef.current?.click();
   }, []);
 
   return {
@@ -200,7 +203,9 @@ export function usePdfExtractor() {
     hasPdf,
     header,
     onPdfChange,
+    openPdfPicker,
     pdfName,
+    pdfInputRef,
     pdfSizeKb,
     processingText,
     rows,

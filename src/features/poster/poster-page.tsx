@@ -36,6 +36,7 @@ import { useTransliteration } from "./hooks/use-transliteration";
 export function PosterPage() {
   const pb = usePosterBuilder();
   const translit = useTransliteration();
+  const nameListboxId = "name-suggestions-listbox";
 
   const roleInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const prevDesignationCount = useRef(pb.designationLines.length);
@@ -367,6 +368,16 @@ export function PosterPage() {
                   >
                     <PopoverAnchor asChild>
                       <Input
+                        aria-activedescendant={
+                          translit.nameSuggestionsVisible &&
+                          translit.nameSuggestionIndex >= 0
+                            ? `name-suggestion-option-${translit.nameSuggestionIndex}`
+                            : undefined
+                        }
+                        aria-autocomplete="list"
+                        aria-controls={nameListboxId}
+                        aria-expanded={translit.nameSuggestionsVisible}
+                        aria-haspopup="listbox"
                         autoComplete="off"
                         id="fullName"
                         onBlur={translit.hideNameSuggestions}
@@ -381,23 +392,26 @@ export function PosterPage() {
                         onKeyDown={handleNameKeydown}
                         placeholder="Full Name"
                         ref={pb.fullNameInputRef}
+                        role="combobox"
                         type="text"
                         value={pb.fullName}
                       />
                     </PopoverAnchor>
                     <PopoverContent
                       align="start"
-                      className="group z-[100] w-72 min-w-[200px] p-0 lg:w-auto"
+                      className="group z-100 w-72 min-w-50 p-0 lg:w-auto"
                       onCloseAutoFocus={(e) => e.preventDefault()}
                       onOpenAutoFocus={(e) => e.preventDefault()}
                     >
                       <div
                         className="flex max-h-[40vh] flex-col overflow-y-auto p-1"
+                        id={nameListboxId}
                         role="listbox"
                       >
                         <div className="flex items-center justify-between px-2 py-1 text-muted-foreground text-xs lg:hidden">
                           <span>Suggestions</span>
                           <Button
+                            aria-label="Close name suggestions"
                             className="h-auto p-0"
                             onClick={translit.hideNameSuggestions}
                             variant="ghost"
@@ -408,16 +422,21 @@ export function PosterPage() {
                         <div className="flex flex-col group-data-[side=top]:flex-col-reverse">
                           {translit.nameSuggestions.map((s, idx) => (
                             <button
+                              aria-selected={
+                                idx === translit.nameSuggestionIndex
+                              }
                               className={cn(
                                 "flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm hover:bg-accent lg:py-2",
                                 idx === translit.nameSuggestionIndex &&
                                   "bg-accent",
                               )}
+                              id={`name-suggestion-option-${idx}`}
                               key={`name-suggestion-${s}`}
                               onClick={() => pickNameSuggestion(s)}
                               onMouseEnter={() =>
                                 translit.setSuggestionIndex("name", idx)
                               }
+                              role="option"
                               type="button"
                             >
                               {s}
@@ -451,6 +470,20 @@ export function PosterPage() {
                         >
                           <PopoverAnchor asChild>
                             <Input
+                              aria-activedescendant={
+                                translit.roleSuggestionsVisible &&
+                                pb.activeRoleIndex === index &&
+                                translit.roleSuggestionIndex >= 0
+                                  ? `role-${index.toString()}-suggestion-option-${translit.roleSuggestionIndex}`
+                                  : undefined
+                              }
+                              aria-autocomplete="list"
+                              aria-controls={`role-${index.toString()}-suggestions-listbox`}
+                              aria-expanded={
+                                translit.roleSuggestionsVisible &&
+                                pb.activeRoleIndex === index
+                              }
+                              aria-haspopup="listbox"
                               autoComplete="off"
                               onBlur={translit.hideRoleSuggestions}
                               onChange={(e) => handleRoleInput(e, index)}
@@ -469,23 +502,26 @@ export function PosterPage() {
                               ref={(el) => {
                                 roleInputRefs.current[index] = el;
                               }}
+                              role="combobox"
                               type="text"
                               value={line}
                             />
                           </PopoverAnchor>
                           <PopoverContent
                             align="start"
-                            className="group z-[100] w-72 min-w-[200px] p-0 lg:w-auto"
+                            className="group z-100 w-72 min-w-50 p-0 lg:w-auto"
                             onCloseAutoFocus={(e) => e.preventDefault()}
                             onOpenAutoFocus={(e) => e.preventDefault()}
                           >
                             <div
                               className="flex max-h-[40vh] flex-col overflow-y-auto p-1"
+                              id={`role-${index.toString()}-suggestions-listbox`}
                               role="listbox"
                             >
                               <div className="flex items-center justify-between px-2 py-1 text-muted-foreground text-xs lg:hidden">
                                 <span>Suggestions</span>
                                 <Button
+                                  aria-label="Close designation suggestions"
                                   className="h-auto p-0"
                                   onClick={translit.hideRoleSuggestions}
                                   variant="ghost"
@@ -496,16 +532,21 @@ export function PosterPage() {
                               <div className="flex flex-col group-data-[side=top]:flex-col-reverse">
                                 {translit.roleSuggestions.map((s, idx) => (
                                   <button
+                                    aria-selected={
+                                      idx === translit.roleSuggestionIndex
+                                    }
                                     className={cn(
                                       "flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm hover:bg-accent lg:py-2",
                                       idx === translit.roleSuggestionIndex &&
                                         "bg-accent",
                                     )}
+                                    id={`role-${index.toString()}-suggestion-option-${idx}`}
                                     key={`role-suggestion-${s}`}
                                     onClick={() => pickRoleSuggestion(s)}
                                     onMouseEnter={() =>
                                       translit.setSuggestionIndex("role", idx)
                                     }
+                                    role="option"
                                     type="button"
                                   >
                                     {s}
@@ -796,7 +837,7 @@ export function PosterPage() {
               ))}
             </div>
             {/* Scroll hint gradient for mobile */}
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent opacity-100 transition-opacity lg:hidden" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-linear-to-l from-background to-transparent opacity-100 transition-opacity lg:hidden" />
           </div>
         </div>
       </section>
@@ -894,6 +935,7 @@ function PhotoToolbar({ pb, onClose }: { pb: PbReturn; onClose: () => void }) {
 
       {/* Scale */}
       <Button
+        aria-label="Decrease photo scale"
         className="size-7"
         onClick={() =>
           pb.setScale(Math.max(0.4, +(pb.scale - 0.05).toFixed(2)))
@@ -907,6 +949,7 @@ function PhotoToolbar({ pb, onClose }: { pb: PbReturn; onClose: () => void }) {
         {scalePercent}%
       </span>
       <Button
+        aria-label="Increase photo scale"
         className="size-7"
         onClick={() =>
           pb.setScale(Math.min(2.5, +(pb.scale + 0.05).toFixed(2)))
@@ -920,7 +963,13 @@ function PhotoToolbar({ pb, onClose }: { pb: PbReturn; onClose: () => void }) {
       <div className="mx-0.5 h-5 w-px bg-border" />
 
       {/* Close */}
-      <Button className="size-7" onClick={onClose} size="icon" variant="ghost">
+      <Button
+        aria-label="Close photo toolbar"
+        className="size-7"
+        onClick={onClose}
+        size="icon"
+        variant="ghost"
+      >
         <X className="size-3.5" />
       </Button>
 
@@ -1020,6 +1069,7 @@ function TextToolbar({
             <div className="grid grid-cols-8 gap-1">
               {COLOR_SWATCHES.map((c) => (
                 <button
+                  aria-label={`Set text color ${c}`}
                   className={cn(
                     "size-6 rounded-full border transition hover:scale-110",
                     displayColor === c
@@ -1044,7 +1094,7 @@ function TextToolbar({
                   style={{ backgroundColor: displayColor }}
                 />
                 <input
-                  className="w-0 flex-1 border-none bg-transparent font-mono text-xs outline-none"
+                  className="w-0 flex-1 rounded-sm border-none bg-transparent font-mono text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   onChange={(e) => handleColorChange(e.target.value)}
                   type="text"
                   value={displayColor}
@@ -1078,6 +1128,7 @@ function TextToolbar({
 
       {/* Scale */}
       <Button
+        aria-label="Decrease text scale"
         className="size-7"
         onClick={() => handleScaleChange(-1)}
         size="icon"
@@ -1089,6 +1140,7 @@ function TextToolbar({
         {Math.round(currentScale * 100)}%
       </span>
       <Button
+        aria-label="Increase text scale"
         className="size-7"
         onClick={() => handleScaleChange(1)}
         size="icon"
@@ -1101,6 +1153,7 @@ function TextToolbar({
 
       {/* Bold / Italic */}
       <Button
+        aria-label="Toggle bold"
         className={cn("size-7", currentStyle.bold && "bg-accent")}
         onClick={() => handleStyleToggle("bold")}
         size="icon"
@@ -1109,6 +1162,7 @@ function TextToolbar({
         <Bold className="size-3.5" />
       </Button>
       <Button
+        aria-label="Toggle italic"
         className={cn("size-7", currentStyle.italic && "bg-accent")}
         onClick={() => handleStyleToggle("italic")}
         size="icon"
@@ -1120,7 +1174,13 @@ function TextToolbar({
       <div className="mx-0.5 h-5 w-px bg-border" />
 
       {/* Close */}
-      <Button className="size-7" onClick={onClose} size="icon" variant="ghost">
+      <Button
+        aria-label="Close text toolbar"
+        className="size-7"
+        onClick={onClose}
+        size="icon"
+        variant="ghost"
+      >
         <X className="size-3.5" />
       </Button>
     </div>

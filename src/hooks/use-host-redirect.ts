@@ -1,11 +1,7 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 
-const POSTER_ONLY_HOSTS = new Set([
-  "tools.chunnapoudel.com",
-  "tools.binodformp.com",
-  "tools.binodchaudhary.com",
-]);
+import { isPosterOnlyHost } from "@/hostRedirect";
 
 export function useHostRedirect() {
   const location = useLocation();
@@ -13,7 +9,7 @@ export function useHostRedirect() {
 
   useEffect(() => {
     const host = window.location.hostname.toLowerCase();
-    if (!POSTER_ONLY_HOSTS.has(host)) return;
+    if (!isPosterOnlyHost(host)) return;
 
     if (location.pathname !== "/poster") {
       navigate("/poster", { replace: true });

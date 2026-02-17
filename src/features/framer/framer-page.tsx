@@ -34,10 +34,12 @@ export function FramerPage() {
     downloadStatus,
     downloadZip,
     frameFile,
+    frameInputRef,
     frameUrl,
     onFrameChange,
     onPhotosChange,
     photoFiles,
+    photoInputRef,
     photoStatus,
     setExportQuality,
     setLandscapePan,
@@ -157,6 +159,7 @@ export function FramerPage() {
                   </p>
                 </div>
                 <Button
+                  aria-label="Remove frame"
                   className="size-7 shrink-0"
                   onClick={clearFrame}
                   size="icon"
@@ -172,6 +175,7 @@ export function FramerPage() {
                   className="hidden"
                   id="frameInput"
                   onChange={onFrameChange}
+                  ref={frameInputRef}
                   type="file"
                 />
                 <label
@@ -202,6 +206,7 @@ export function FramerPage() {
                     {photoFiles.length !== 1 ? "s" : ""} selected
                   </p>
                   <Button
+                    aria-label="Clear selected photos"
                     className="size-7 shrink-0"
                     onClick={clearPhotos}
                     size="icon"
@@ -234,6 +239,7 @@ export function FramerPage() {
                   id="photoInput"
                   multiple
                   onChange={onPhotosChange}
+                  ref={photoInputRef}
                   type="file"
                 />
                 <label
@@ -568,6 +574,7 @@ function PreviewPanel({
       {/* Navigation arrows + label */}
       <div className="flex items-center justify-center gap-3">
         <Button
+          aria-label={`Previous ${label.toLowerCase()} photo`}
           className="size-9 sm:size-8"
           disabled={navDisabled}
           onClick={onPrev}
@@ -581,6 +588,7 @@ function PreviewPanel({
           <span className="ml-2 text-muted-foreground text-xs">{meta}</span>
         </div>
         <Button
+          aria-label={`Next ${label.toLowerCase()} photo`}
           className="size-9 sm:size-8"
           disabled={navDisabled}
           onClick={onNext}

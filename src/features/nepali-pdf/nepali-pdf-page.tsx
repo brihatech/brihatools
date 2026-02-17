@@ -58,6 +58,7 @@ export function NepaliPdfPage() {
               disabled={pdf.busy}
               id="pdfInput"
               onChange={pdf.onPdfChange}
+              ref={pdf.pdfInputRef}
               type="file"
             />
             {pdf.hasPdf && (
@@ -218,7 +219,7 @@ export function NepaliPdfPage() {
             <Button
               className="mt-2"
               disabled={pdf.busy}
-              onClick={() => document.getElementById("pdfInput")?.click()}
+              onClick={pdf.openPdfPicker}
               size="lg"
               variant="outline"
             >

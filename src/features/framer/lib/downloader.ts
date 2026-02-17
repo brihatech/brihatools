@@ -1,3 +1,5 @@
+import { sileo } from "sileo";
+
 import type { PhotoManager } from "./photo-loader";
 import { getExportScale, type PhotoFramerState } from "./state";
 
@@ -26,14 +28,48 @@ export const handleDownload = async (
     type: "module",
   });
 
-  const photosData: Array<{ name: string; bitmap: ImageBitmap }> = [];
-  for (const photo of photos) {
-    const readyBitmap = await photoManager.ensurePhotoReady(photo);
-    const bitmap = await createImageBitmap(readyBitmap);
-    photosData.push({ name: photo.name, bitmap });
-  }
+  let isFinalized = false;
+  let timeoutId: number | null = null;
+  const finalize = (statusText?: string) => {
+    if (isFinalized) return false;
+    isFinalized = true;
 
-  const frameBitmap = await createImageBitmap(currentFrameBitmap);
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+
+    state.isProcessing = false;
+    hooks.onBusyChange(false);
+
+    if (statusText) {
+      hooks.onStatus(statusText);
+    }
+
+    worker.terminate();
+
+    return true;
+  };
+
+  const photosData: Array<{ name: string; bitmap: ImageBitmap }> = [];
+
+  worker.onerror = () => {
+    if (finalize("Export failed. Please try again.")) {
+      sileo.error({
+        title: "Export Failed",
+        description: "The exporter stopped unexpectedly. Please try again.",
+      });
+    }
+  };
+
+  worker.onmessageerror = () => {
+    if (finalize("Export failed due to worker message error.")) {
+      sileo.error({
+        title: "Export Failed",
+        description: "The export data was invalid. Please try again.",
+      });
+    }
+  };
 
   worker.onmessage = (event) => {
     const { type, current, total, blob } = event.data;
@@ -43,29 +79,65 @@ export const handleDownload = async (
     }
 
     if (type === "complete") {
+      const fileUrl = URL.createObjectURL(blob as Blob);
       const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
+      link.href = fileUrl;
       link.download = "framed-photos.zip";
       link.click();
+      window.setTimeout(() => {
+        URL.revokeObjectURL(fileUrl);
+      }, 5000);
 
-      hooks.onStatus("Done!");
-      state.isProcessing = false;
-      hooks.onBusyChange(false);
-      worker.terminate();
+      if (finalize("Done!")) {
+        sileo.success({
+          title: "Export Complete",
+          description: `${photos.length} framed photo${photos.length === 1 ? "" : "s"} downloaded as a ZIP file.`,
+        });
+      }
     }
   };
 
-  const transferables = [
-    frameBitmap,
-    ...photosData.map((photo) => photo.bitmap),
-  ];
-  worker.postMessage(
-    {
-      frame: frameBitmap,
-      photos: photosData,
-      settings: JSON.parse(JSON.stringify(state.settings)),
-      exportScale: getExportScale(state.exportQuality),
-    },
-    transferables,
-  );
+  timeoutId = window.setTimeout(() => {
+    if (finalize("Export timed out. Try fewer photos or lower quality.")) {
+      sileo.error({
+        title: "Export Timed Out",
+        description: "Try fewer photos or lower export quality.",
+      });
+    }
+  }, 180000);
+
+  try {
+    for (const photo of photos) {
+      const readyBitmap = await photoManager.ensurePhotoReady(photo);
+      const bitmap = await createImageBitmap(readyBitmap);
+      photosData.push({ name: photo.name, bitmap });
+    }
+
+    const frameBitmap = await createImageBitmap(currentFrameBitmap);
+
+    const transferables = [
+      frameBitmap,
+      ...photosData.map((photo) => photo.bitmap),
+    ];
+
+    worker.postMessage(
+      {
+        frame: frameBitmap,
+        photos: photosData,
+        settings: JSON.parse(JSON.stringify(state.settings)),
+        exportScale: getExportScale(state.exportQuality),
+      },
+      transferables,
+    );
+  } catch {
+    for (const photo of photosData) {
+      photo.bitmap.close();
+    }
+    if (finalize("Export failed while preparing images.")) {
+      sileo.error({
+        title: "Export Failed",
+        description: "Couldn’t prepare the selected images for export.",
+      });
+    }
+  }
 };

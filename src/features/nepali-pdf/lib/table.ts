@@ -200,22 +200,52 @@ export function groupIntoRows(
   cells: ExtractedCell[],
   yTolerance = 2.0,
 ): ExtractedRow[] {
+  const safeTolerance = Math.max(0.1, yTolerance);
   const sorted = [...cells].sort(
     (a, b) => a.page - b.page || b.y - a.y || a.x - b.x,
   );
   const rows: ExtractedRow[] = [];
+  const pageBuckets = new Map<number, Map<number, ExtractedRow[]>>();
 
   for (const cell of sorted) {
-    const existing = rows.find(
-      (r) => r.page === cell.page && Math.abs(r.y - cell.y) <= yTolerance,
-    );
+    let buckets = pageBuckets.get(cell.page);
+    if (!buckets) {
+      buckets = new Map<number, ExtractedRow[]>();
+      pageBuckets.set(cell.page, buckets);
+    }
+
+    const bucketKey = Math.round(cell.y / safeTolerance);
+    let existing: ExtractedRow | undefined;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (const key of [bucketKey - 1, bucketKey, bucketKey + 1]) {
+      const candidates = buckets.get(key);
+      if (!candidates) continue;
+
+      for (const candidate of candidates) {
+        const distance = Math.abs(candidate.y - cell.y);
+        if (distance <= safeTolerance && distance < closestDistance) {
+          closestDistance = distance;
+          existing = candidate;
+        }
+      }
+    }
+
     if (existing) {
       existing.cells.push(cell);
       existing.y =
         (existing.y * (existing.cells.length - 1) + cell.y) /
         existing.cells.length;
     } else {
-      rows.push({ page: cell.page, y: cell.y, cells: [cell] });
+      const row: ExtractedRow = { page: cell.page, y: cell.y, cells: [cell] };
+      rows.push(row);
+      const targetBucket = Math.round(row.y / safeTolerance);
+      const bucketRows = buckets.get(targetBucket);
+      if (bucketRows) {
+        bucketRows.push(row);
+      } else {
+        buckets.set(targetBucket, [row]);
+      }
     }
   }
 

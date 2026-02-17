@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
+import { logError } from "@/lib/logger";
+
 import {
   extractLastToken,
   getSuggestions,
@@ -68,7 +70,10 @@ export function useTransliteration() {
           setRoleSuggestionIndex(suggestions.length > 0 ? 0 : -1);
         }
       } catch (error) {
-        console.error("Transliteration error:", error);
+        logError("poster.transliteration.suggestion_fetch_failed", error, {
+          feature: "poster",
+          kind,
+        });
       }
     },
     [],
