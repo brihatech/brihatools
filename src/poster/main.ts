@@ -11,7 +11,7 @@ import {
   type PosterCategory,
   type PosterRealCategory,
 } from "./category";
-import { DEFAULT_FRAME_SRC, FRAMES } from "./frames";
+import { FRAMES, getDefaultFrameSrcForCategory } from "./frames";
 import { extractLastToken, getSuggestions, splitByCursor } from "./suggestions";
 
 const TRANSLITERATE_DEBOUNCE_MS = 180;
@@ -26,8 +26,13 @@ type DesignationStyle = {
   fontWeight: string;
 };
 
+const INITIAL_CATEGORY = getDefaultPosterCategoryForHostname(
+  window.location.hostname,
+);
+const INITIAL_FRAME_SRC = getDefaultFrameSrcForCategory(INITIAL_CATEGORY);
+
 const DEFAULT_ROLE_STYLE_SOURCE =
-  FRAMES.find((frame) => frame.src === DEFAULT_FRAME_SRC) ?? FRAMES[0];
+  FRAMES.find((frame) => frame.src === INITIAL_FRAME_SRC) ?? FRAMES[0];
 
 const DEFAULT_ROLE_STYLE: DesignationStyle = DEFAULT_ROLE_STYLE_SOURCE
   ? {
@@ -68,8 +73,8 @@ Alpine.data("posterBuilder", () => {
 
   return {
     frames: FRAMES,
-    activeFrame: DEFAULT_FRAME_SRC,
-    selectedCategory: "All" as PosterCategory,
+    activeFrame: INITIAL_FRAME_SRC,
+    selectedCategory: INITIAL_CATEGORY as PosterCategory,
 
     // Photo placement
     hasPhoto: false,
