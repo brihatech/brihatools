@@ -1,4 +1,4 @@
-const POSTER_ONLY_HOSTS = new Set([
+export const POSTER_ONLY_HOSTS = new Set([
   "tools.chunnapoudel.com",
   "tools.binodformp.com",
   "tools.binodchaudhary.com",
@@ -9,15 +9,19 @@ function normalizePathname(pathname: string): string {
   return trimmed.length === 0 ? "/" : trimmed;
 }
 
+export function isPosterOnlyHost(hostname: string): boolean {
+  return POSTER_ONLY_HOSTS.has(hostname.toLowerCase());
+}
+
 export function enforcePosterOnlyHosts(): void {
   if (typeof window === "undefined") return;
 
   const host = window.location.hostname.toLowerCase();
-  if (!POSTER_ONLY_HOSTS.has(host)) return;
+  if (!isPosterOnlyHost(host)) return;
 
   const pathname = normalizePathname(window.location.pathname);
-  if (pathname === "/poster.html") return;
+  if (pathname === "/poster") return;
 
-  const target = `/poster.html${window.location.search}${window.location.hash}`;
+  const target = `/poster${window.location.search}${window.location.hash}`;
   window.location.replace(target);
 }
