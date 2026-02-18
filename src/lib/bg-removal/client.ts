@@ -11,7 +11,7 @@ let nextRequestId = 0;
 
 const getWorker = () => {
   if (!worker) {
-    worker = new Worker(new URL("./bg-removal.worker.ts", import.meta.url), {
+    worker = new Worker(new URL("./worker.ts", import.meta.url), {
       type: "module",
     });
 

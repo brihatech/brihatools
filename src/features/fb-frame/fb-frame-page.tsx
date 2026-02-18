@@ -3,6 +3,7 @@ import {
   ImagePlus,
   Loader2,
   RotateCcw,
+  Sparkles,
   X,
   ZoomIn,
   ZoomOut,
@@ -198,6 +199,60 @@ export function FbFramePage() {
             )}
           </div>
 
+          {/* Background Removal */}
+          {fb.hasPhoto && (
+            <div className="hidden space-y-2 lg:block">
+              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                Background Removal
+              </Label>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between rounded-lg border p-2">
+                  <span className="text-sm">Quality</span>
+                  <div className="flex items-center gap-1 rounded-md bg-muted/50 p-1">
+                    <button
+                      className={cn(
+                        "rounded px-2 py-1 text-xs transition-colors",
+                        fb.removeBgQuality === "standard"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                      onClick={() => fb.setRemoveBgQuality("standard")}
+                      type="button"
+                    >
+                      Standard
+                    </button>
+                    <button
+                      className={cn(
+                        "rounded px-2 py-1 text-xs transition-colors",
+                        fb.removeBgQuality === "hq"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                      onClick={() => fb.setRemoveBgQuality("hq")}
+                      type="button"
+                    >
+                      HD
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  className="w-full gap-2"
+                  disabled={fb.removeBgBusy}
+                  onClick={fb.removeBackground}
+                  size="sm"
+                  variant="secondary"
+                >
+                  {fb.removeBgBusy ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-3.5" />
+                  )}
+                  {fb.removeBgBusy ? "Processing..." : "Remove Background"}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Frame Selection */}
           <div className="space-y-2">
             <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
@@ -386,6 +441,52 @@ export function FbFramePage() {
                     variant="outline"
                   >
                     <ZoomIn className="size-4" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Mobile Background Removal Control */}
+              {fb.hasPhoto && (
+                <div className="flex w-full items-center gap-2 lg:hidden">
+                  <div className="flex shrink-0 items-center gap-1 rounded-md bg-muted/50 p-1">
+                    <button
+                      className={cn(
+                        "rounded px-2 py-1.5 text-xs transition-colors",
+                        fb.removeBgQuality === "standard"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                      onClick={() => fb.setRemoveBgQuality("standard")}
+                      type="button"
+                    >
+                      Std
+                    </button>
+                    <button
+                      className={cn(
+                        "rounded px-2 py-1.5 text-xs transition-colors",
+                        fb.removeBgQuality === "hq"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                      onClick={() => fb.setRemoveBgQuality("hq")}
+                      type="button"
+                    >
+                      HD
+                    </button>
+                  </div>
+                  <Button
+                    className="flex-1 gap-2"
+                    disabled={fb.removeBgBusy}
+                    onClick={fb.removeBackground}
+                    size="default"
+                    variant="secondary"
+                  >
+                    {fb.removeBgBusy ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-4" />
+                    )}
+                    {fb.removeBgBusy ? "Processing..." : "Remove BG"}
                   </Button>
                 </div>
               )}

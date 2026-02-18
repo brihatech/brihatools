@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type BackgroundRemovalQuality,
   removeBackground,
-} from "../lib/background";
+} from "@/lib/bg-removal/client";
 
 export function useBackgroundRemoval() {
   const [processedImage, setProcessedImage] = useState<string | null>(null);

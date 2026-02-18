@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sileo } from "sileo";
 
+import type { BackgroundRemovalQuality } from "@/lib/bg-removal/client";
+import { useBackgroundRemoval } from "@/hooks/use-background-removal";
 import { logError } from "@/lib/logger";
 
-import type { BackgroundRemovalQuality } from "../lib/background";
 import { computeContainedRect, generatePoster } from "../lib/canvas";
 import {
   getDefaultPosterCategoryForHostname,
@@ -11,7 +12,6 @@ import {
   type PosterRealCategory,
 } from "../lib/category";
 import { DEFAULT_FRAME_SRC, FRAMES, type FrameConfig } from "../lib/frames";
-import { useBackgroundRemoval } from "./use-background-removal";
 
 const TEXT_SCALE_STEP = 0.05;
 const MAX_DESIGNATIONS = 5;
