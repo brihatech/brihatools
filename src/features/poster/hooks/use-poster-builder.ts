@@ -11,7 +11,11 @@ import {
   type PosterCategory,
   type PosterRealCategory,
 } from "../lib/category";
-import { DEFAULT_FRAME_SRC, FRAMES, type FrameConfig } from "../lib/frames";
+import {
+  FRAMES,
+  type FrameConfig,
+  getDefaultFrameSrcForCategory,
+} from "../lib/frames";
 
 const TEXT_SCALE_STEP = 0.05;
 const MAX_DESIGNATIONS = 5;
@@ -29,9 +33,14 @@ const DEFAULT_TEXT_STYLE: TextStyleFlags = {
 export type SelectedTextId = "name" | "photo" | number | null;
 
 export function usePosterBuilder() {
-  const [activeFrame, setActiveFrame] = useState(DEFAULT_FRAME_SRC);
+  const [initialCategory] = useState<PosterCategory>(() =>
+    getDefaultPosterCategoryForHostname(window.location.hostname),
+  );
+  const [activeFrame, setActiveFrame] = useState(() =>
+    getDefaultFrameSrcForCategory(initialCategory),
+  );
   const [selectedCategory, setSelectedCategory] =
-    useState<PosterCategory>("All");
+    useState<PosterCategory>(initialCategory);
 
   const [hasPhoto, setHasPhoto] = useState(false);
   const [photoSrc, setPhotoSrc] = useState("");

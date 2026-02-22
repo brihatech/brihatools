@@ -272,3 +272,17 @@ export const FRAMES: FrameConfig[] = [
 ];
 
 export const DEFAULT_FRAME_SRC = FRAMES[0]?.src ?? "/frames/frame1.png";
+
+/**
+ * Return the first frame whose `categories` include the given category.
+ * Falls back to `FRAMES[0]` when category is "All" or no match is found.
+ */
+export function getDefaultFrameSrcForCategory(category: string): string {
+  if (category && category !== "All") {
+    const match = FRAMES.find((f) =>
+      f.categories.includes(category as FrameConfig["categories"][number]),
+    );
+    if (match) return match.src;
+  }
+  return DEFAULT_FRAME_SRC;
+}

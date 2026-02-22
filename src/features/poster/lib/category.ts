@@ -33,6 +33,14 @@ const DEFAULT_CATEGORY_RULES: Array<{
 export const getDefaultPosterCategoryForHostname = (
   hostname: string,
 ): PosterCategory => {
+  // Allow overriding hostname via ?host= query param during development
+  if (import.meta.env.DEV) {
+    const hostOverride = new URLSearchParams(window.location.search).get(
+      "host",
+    );
+    if (hostOverride) hostname = hostOverride;
+  }
+
   for (const rule of DEFAULT_CATEGORY_RULES) {
     for (const domain of rule.domains) {
       if (matchesDomain(hostname, domain)) {
