@@ -1,5 +1,6 @@
 export const POSTER_ONLY_HOSTS = new Set([
   "tools.chunnapoudel.com",
+  "vote.chunnapoudel.com",
   "tools.binodformp.com",
   "tools.binodchaudhary.com",
 ]);

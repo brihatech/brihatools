@@ -1,3 +1,5 @@
+import type { PosterRealCategory } from "./category";
+
 export type FrameTextConfig = {
   xPct: number;
   yPct: number;
@@ -15,7 +17,7 @@ export type FrameConfig = {
   thumbSrc?: string;
   hasOverlay: boolean;
   overlaySrc?: string;
-  categories: Array<"Chunna Poudel" | "Binod Chaudhary">;
+  categories: PosterRealCategory[];
   nameText: FrameTextConfig;
   roleText: FrameTextConfig;
 };
@@ -218,6 +220,33 @@ export const FRAMES: FrameConfig[] = [
     src: "/frames/Congress Frame.png",
     thumbSrc: "/frames/Congress Frame.png",
     categories: ["Chunna Poudel", "Binod Chaudhary"],
+    hasOverlay: false,
+    nameText: {
+      xPct: 8,
+      yPct: 82,
+      color: "#007400",
+      fontFamily: "Yatra",
+      fontSizePx: 42,
+      fontWeight: "600",
+      scale: 1,
+      backgroundColor: "transparent",
+    },
+    roleText: {
+      xPct: 8,
+      yPct: 88,
+      color: "#007400",
+      fontFamily: "Vespre",
+      fontSizePx: 28,
+      fontWeight: "500",
+      scale: 1,
+      backgroundColor: "transparent",
+    },
+  },
+  {
+    id: "frame9",
+    src: "/frames/frame_chunnu_4.png",
+    thumbSrc: "/frames/frame_chunnu_4.png",
+    categories: ["Chunna Poudel", "Vote Chunnu"],
     hasOverlay: false,
     nameText: {
       xPct: 8,

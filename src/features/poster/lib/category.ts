@@ -1,4 +1,8 @@
-export type PosterCategory = "All" | "Chunna Poudel" | "Binod Chaudhary";
+export type PosterCategory =
+  | "All"
+  | "Chunna Poudel"
+  | "Binod Chaudhary"
+  | "Vote Chunnu";
 
 export type PosterRealCategory = Exclude<PosterCategory, "All">;
 
@@ -12,6 +16,10 @@ const DEFAULT_CATEGORY_RULES: Array<{
   category: PosterCategory;
   domains: readonly string[];
 }> = [
+  {
+    category: "Vote Chunnu",
+    domains: ["vote.chunnapoudel.com"],
+  },
   {
     category: "Chunna Poudel",
     domains: ["chunnapoudel.com"],

@@ -173,13 +173,6 @@ export function usePosterBuilder() {
   }, []);
 
   useEffect(() => {
-    const inferred = getDefaultPosterCategoryForHostname(
-      window.location.hostname,
-    );
-    setSelectedCategory(inferred);
-  }, []);
-
-  useEffect(() => {
     const frameImage = frameImageRef.current;
     if (!frameImage) return;
 
@@ -257,6 +250,13 @@ export function usePosterBuilder() {
       updateFrameOverlay,
     ],
   );
+
+  useEffect(() => {
+    const inferred = getDefaultPosterCategoryForHostname(
+      window.location.hostname,
+    );
+    setCategoryFn(inferred);
+  }, [setCategoryFn]);
 
   const {
     processedImage,
