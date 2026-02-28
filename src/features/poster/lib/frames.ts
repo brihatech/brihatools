@@ -246,7 +246,7 @@ export const FRAMES: FrameConfig[] = [
     id: "frame9",
     src: "/frames/frame_chunnu_4.png",
     thumbSrc: "/frames/frame_chunnu_4.png",
-    categories: ["Chunna Poudel", "Vote Chunnu"],
+    categories: ["Chunna Poudel"],
     hasOverlay: false,
     nameText: {
       xPct: 8,
