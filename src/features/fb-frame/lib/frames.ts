@@ -4,6 +4,7 @@ export interface FbFrame {
   src: string;
   width: number;
   height: number;
+  categories?: string[];
 }
 
 const FRAMES_DIR = "/frames/facebook";
@@ -15,6 +16,14 @@ export const FB_FRAMES: FbFrame[] = [
     src: `${FRAMES_DIR}/frame_chunna_fb.png`,
     width: 1080,
     height: 1080,
+    categories: ["Chunna Poudel"],
   },
-  // Add more frames here in the future
+  {
+    id: "binod-fb",
+    name: "Binod Facebook Frame",
+    src: `${FRAMES_DIR}/frame_binod_fb.png`,
+    width: 1080,
+    height: 1080,
+    categories: ["Binod Chaudhary"],
+  },
 ];

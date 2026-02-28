@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sileo } from "sileo";
 
 import type { BackgroundRemovalQuality } from "@/lib/bg-removal/client";
 import { useBackgroundRemoval } from "@/hooks/use-background-removal";
 import { logError } from "@/lib/logger";
 
+import {
+  type FbFrameCategory,
+  type FbFrameRealCategory,
+  getDefaultFbFrameCategoryForHostname,
+} from "../lib/category";
 import { FB_FRAMES, type FbFrame } from "../lib/frames";
 
 export type FrameInfo = FbFrame & { aspectRatio: number };
@@ -50,6 +55,10 @@ export const MIN_SCALE = 0.1;
 export const MAX_SCALE = 5;
 
 export function useFbFrame() {
+  const [initialCategory] = useState<FbFrameCategory>(() =>
+    getDefaultFbFrameCategoryForHostname(window.location.hostname),
+  );
+
   const [state, setState] = useState<FbFrameState>({
     frames: [],
     selectedFrame: null,
@@ -80,13 +89,34 @@ export function useFbFrame() {
 
   useEffect(() => {
     loadAvailableFrames().then((frames) => {
-      setState((prev) => ({
-        ...prev,
-        frames,
-        selectedFrame: frames[0] ?? null,
-      }));
+      setState((prev) => {
+        const matchingFrames =
+          initialCategory === "All"
+            ? frames
+            : frames.filter(
+                (f) =>
+                  !f.categories ||
+                  f.categories.length === 0 ||
+                  f.categories.includes(initialCategory as FbFrameRealCategory),
+              );
+
+        return {
+          ...prev,
+          frames,
+          selectedFrame: matchingFrames[0] ?? null,
+        };
+      });
     });
-  }, []);
+  }, [initialCategory]);
+
+  const filteredFrames = useMemo(() => {
+    if (initialCategory === "All") return state.frames;
+    const cat = initialCategory as FbFrameRealCategory;
+    return state.frames.filter((f) => {
+      if (!f.categories || f.categories.length === 0) return true;
+      return f.categories.includes(cat);
+    });
+  }, [state.frames, initialCategory]);
 
   // Update busy state from hook
   useEffect(() => {
@@ -310,7 +340,7 @@ export function useFbFrame() {
   const canExport = hasPhoto && hasFrame && !state.isExporting;
 
   return {
-    frames: state.frames,
+    frames: filteredFrames,
     selectedFrame: state.selectedFrame,
     photoFile: state.photoFile,
     photoUrl: state.photoUrl,

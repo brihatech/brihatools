@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 
-import { isPosterOnlyHost } from "@/hostRedirect";
+import { isFbFrameOnlyHost, isPosterOnlyHost } from "@/hostRedirect";
 
 export function useHostRedirect() {
   const location = useLocation();
@@ -9,10 +9,19 @@ export function useHostRedirect() {
 
   useEffect(() => {
     const host = window.location.hostname.toLowerCase();
-    if (!isPosterOnlyHost(host)) return;
 
-    if (location.pathname !== "/poster") {
-      navigate("/poster", { replace: true });
+    if (isFbFrameOnlyHost(host)) {
+      if (location.pathname !== "/fb-frame") {
+        navigate("/fb-frame", { replace: true });
+      }
+      return;
+    }
+
+    if (isPosterOnlyHost(host)) {
+      if (location.pathname !== "/poster") {
+        navigate("/poster", { replace: true });
+      }
+      return;
     }
   }, [location.pathname, navigate]);
 }
