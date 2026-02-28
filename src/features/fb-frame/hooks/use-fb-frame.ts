@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { sileo } from "sileo";
 
 import type { BackgroundRemovalQuality } from "@/lib/bg-removal/client";
@@ -28,28 +28,12 @@ interface FbFrameState {
   removeBgQuality: BackgroundRemovalQuality;
 }
 
-async function loadAvailableFrames(): Promise<FrameInfo[]> {
-  return Promise.all(
-    FB_FRAMES.map(async (frame) => {
-      const img = new Image();
-      img.src = frame.src;
-      await new Promise<void>((resolve) => {
-        img.onload = () => resolve();
-        img.onerror = () => resolve();
-      });
-
-      const width = img.naturalWidth || frame.width;
-      const height = img.naturalHeight || frame.height;
-
-      return {
-        ...frame,
-        width,
-        height,
-        aspectRatio: width / height,
-      };
-    }),
-  );
-}
+// Compute FrameInfo synchronously — width/height are hardcoded in frames.ts,
+// so there's no need to fetch each image just to read naturalWidth/height.
+const ALL_FRAME_INFOS: FrameInfo[] = FB_FRAMES.map((frame) => ({
+  ...frame,
+  aspectRatio: frame.width / frame.height,
+}));
 
 export const MIN_SCALE = 0.1;
 export const MAX_SCALE = 5;
@@ -59,9 +43,22 @@ export function useFbFrame() {
     getDefaultFbFrameCategoryForHostname(window.location.hostname),
   );
 
+  const getInitialFrame = (): FrameInfo | null => {
+    const frames =
+      initialCategory === "All"
+        ? ALL_FRAME_INFOS
+        : ALL_FRAME_INFOS.filter(
+            (f) =>
+              !f.categories ||
+              f.categories.length === 0 ||
+              f.categories.includes(initialCategory as FbFrameRealCategory),
+          );
+    return frames[0] ?? null;
+  };
+
   const [state, setState] = useState<FbFrameState>({
-    frames: [],
-    selectedFrame: null,
+    frames: ALL_FRAME_INFOS,
+    selectedFrame: getInitialFrame(),
     photoFile: null,
     photoUrl: null,
     photoNaturalWidth: 0,
@@ -72,6 +69,14 @@ export function useFbFrame() {
     removeBgBusy: false,
     removeBgQuality: "standard",
   });
+
+  const filteredFrames =
+    initialCategory === "All"
+      ? ALL_FRAME_INFOS
+      : ALL_FRAME_INFOS.filter((f) => {
+          if (!f.categories || f.categories.length === 0) return true;
+          return f.categories.includes(initialCategory as FbFrameRealCategory);
+        });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const photoImageRef = useRef<HTMLImageElement | null>(null);
@@ -86,37 +91,6 @@ export function useFbFrame() {
     removeBg: triggerRemoveBg,
     cleanup: cleanupBgRemoval,
   } = useBackgroundRemoval();
-
-  useEffect(() => {
-    loadAvailableFrames().then((frames) => {
-      setState((prev) => {
-        const matchingFrames =
-          initialCategory === "All"
-            ? frames
-            : frames.filter(
-                (f) =>
-                  !f.categories ||
-                  f.categories.length === 0 ||
-                  f.categories.includes(initialCategory as FbFrameRealCategory),
-              );
-
-        return {
-          ...prev,
-          frames,
-          selectedFrame: matchingFrames[0] ?? null,
-        };
-      });
-    });
-  }, [initialCategory]);
-
-  const filteredFrames = useMemo(() => {
-    if (initialCategory === "All") return state.frames;
-    const cat = initialCategory as FbFrameRealCategory;
-    return state.frames.filter((f) => {
-      if (!f.categories || f.categories.length === 0) return true;
-      return f.categories.includes(cat);
-    });
-  }, [state.frames, initialCategory]);
 
   // Update busy state from hook
   useEffect(() => {

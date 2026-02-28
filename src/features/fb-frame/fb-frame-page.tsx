@@ -23,8 +23,30 @@ import {
   useFbFrame,
 } from "./hooks/use-fb-frame";
 
+// Module-level set — only fetch each full-res frame once per page session
+const prefetchedFbFrames = new Set<string>();
+
 export function FbFramePage() {
   const fb = useFbFrame();
+
+  // Preload the active frame PNG as soon as the page mounts or frame changes
+  useEffect(() => {
+    if (!fb.selectedFrame) return;
+    const existing = document.querySelector(
+      `link[rel="preload"][data-fb-frame-preload]`,
+    );
+    if (existing) existing.remove();
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = fb.selectedFrame.src;
+    link.dataset.fbFramePreload = "1";
+    document.head.appendChild(link);
+    return () => {
+      link.remove();
+    };
+  }, [fb.selectedFrame]);
+
   const photoInputRef = useRef<HTMLInputElement>(null);
   const previewScrollRef = useRef<HTMLDivElement>(null);
   const hadPhotoRef = useRef(false);
@@ -538,12 +560,21 @@ function FrameThumb({
           : "border-transparent",
       )}
       onClick={onSelect}
+      onMouseEnter={() => {
+        if (isSelected) return;
+        if (prefetchedFbFrames.has(frame.src)) return;
+        prefetchedFbFrames.add(frame.src);
+        const img = new Image();
+        img.src = frame.src;
+      }}
       type="button"
     >
       <img
         alt={frame.name}
-        className="aspect-square w-full object-cover"
-        src={frame.src}
+        className="aspect-square w-full object-cover text-transparent"
+        decoding="async"
+        loading="lazy"
+        src={frame.thumbSrc ?? frame.src}
       />
     </button>
   );
