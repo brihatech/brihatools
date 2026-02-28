@@ -273,7 +273,7 @@ export const FRAMES: FrameConfig[] = [
     id: "frame10",
     src: "/frames/frame_chunnu_5.png",
     thumbSrc: "/frames/frame_chunnu_5.png",
-    categories: ["Chunna Poudel"],
+    categories: ["Chunna Poudel", "Vote Chunnu"],
     hasOverlay: false,
     nameText: {
       xPct: 8,
@@ -300,7 +300,7 @@ export const FRAMES: FrameConfig[] = [
     id: "frame11",
     src: "/frames/frame_chunnu_6.png",
     thumbSrc: "/frames/frame_chunnu_6.png",
-    categories: ["Chunna Poudel"],
+    categories: ["Chunna Poudel", "Vote Chunnu"],
     hasOverlay: false,
     nameText: {
       xPct: 8,
