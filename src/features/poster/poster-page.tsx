@@ -857,7 +857,7 @@ export function PosterPage() {
                 >
                   <img
                     alt="Frame preview"
-                    className="h-20 w-full object-cover sm:h-24"
+                    className="h-20 w-full object-cover text-transparent sm:h-24"
                     decoding="async"
                     loading={i === 0 ? "eager" : "lazy"}
                     src={frame.thumbSrc || frame.src}
