@@ -189,12 +189,24 @@ export function usePosterBuilder() {
     frameImage.addEventListener("load", handleLoad);
     if (frameImage.complete) updateFrameOverlay();
 
-    const handleResize = () => updateFrameOverlay();
-    window.addEventListener("resize", handleResize);
+    // Use ResizeObserver on the stage instead of window.resize —
+    // fires only when the stage element actually changes size, not on every
+    // browser resize event. Debounced to one rAF to coalesce rapid changes.
+    const stage = stageRef.current;
+    let rafId: number | null = null;
+    const observer = new ResizeObserver(() => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateFrameOverlay();
+      });
+    });
+    if (stage) observer.observe(stage);
 
     return () => {
       frameImage.removeEventListener("load", handleLoad);
-      window.removeEventListener("resize", handleResize);
+      observer.disconnect();
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [updateFrameOverlay]);
 

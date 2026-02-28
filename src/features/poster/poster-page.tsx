@@ -38,6 +38,23 @@ export function PosterPage() {
   const translit = useTransliteration();
   const nameListboxId = "name-suggestions-listbox";
 
+  // Preload the active frame PNG so it starts fetching before the <img> renders
+  useEffect(() => {
+    const existing = document.querySelector(
+      `link[rel="preload"][data-frame-preload]`,
+    );
+    if (existing) existing.remove();
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = pb.activeFrame;
+    link.dataset.framePreload = "1";
+    document.head.appendChild(link);
+    return () => {
+      link.remove();
+    };
+  }, [pb.activeFrame]);
+
   const roleInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const prevDesignationCount = useRef(pb.designationLines.length);
 
@@ -816,7 +833,7 @@ export function PosterPage() {
           </h2>
           <div className="group relative">
             <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-3 lg:gap-2 lg:overflow-visible">
-              {pb.filteredFrames.map((frame) => (
+              {pb.filteredFrames.map((frame, i) => (
                 <button
                   className={cn(
                     "shrink-0 overflow-hidden rounded-md border bg-muted/50 transition hover:-translate-y-0.5 hover:shadow-md",
@@ -831,6 +848,8 @@ export function PosterPage() {
                   <img
                     alt="Frame preview"
                     className="h-20 w-full object-cover sm:h-24"
+                    decoding="async"
+                    loading={i === 0 ? "eager" : "lazy"}
                     src={frame.thumbSrc || frame.src}
                   />
                 </button>

@@ -10,7 +10,8 @@
     "check": "biome check .",
     "check:unsafe": "biome check --write --unsafe .",
     "format": "biome format --write .",
-    "typecheck": "tsc --noemit"
+    "typecheck": "tsc --noemit",
+    "gen-thumbs": "node scripts/gen-thumbs.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.14",

@@ -26,7 +26,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame1",
     src: "/frames/frame_chunnu_1.png",
-    thumbSrc: "/frames/frame_chunnu_1.png",
+    thumbSrc: "/frames/thumbs/frame_chunnu_1.webp",
     categories: ["Chunna Poudel"],
     hasOverlay: false,
     nameText: {
@@ -53,7 +53,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame2",
     src: "/frames/frame_chunnu_2.png",
-    thumbSrc: "/frames/frame_chunnu_2.png",
+    thumbSrc: "/frames/thumbs/frame_chunnu_2.webp",
     categories: ["Chunna Poudel"],
     hasOverlay: false,
     nameText: {
@@ -80,7 +80,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame3",
     src: "/frames/frame_chunnu_3.png",
-    thumbSrc: "/frames/frame_chunnu_3.png",
+    thumbSrc: "/frames/thumbs/frame_chunnu_3.webp",
     categories: ["Chunna Poudel"],
     hasOverlay: false,
     nameText: {
@@ -108,7 +108,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame4",
     src: "/frames/frame_binod_1.png",
-    thumbSrc: "/frames/frame_binod_1.png",
+    thumbSrc: "/frames/thumbs/frame_binod_1.webp",
     categories: ["Binod Chaudhary"],
     hasOverlay: true,
     overlaySrc: "/frames/frame_binod_1_overlay.png",
@@ -136,7 +136,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame5",
     src: "/frames/frame_binod_2.png",
-    thumbSrc: "/frames/frame_binod_2.png",
+    thumbSrc: "/frames/thumbs/frame_binod_2.webp",
     categories: ["Binod Chaudhary"],
     hasOverlay: false,
     nameText: {
@@ -163,7 +163,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame6",
     src: "/frames/frame_binod_3.png",
-    thumbSrc: "/frames/frame_binod_3.png",
+    thumbSrc: "/frames/thumbs/frame_binod_3.webp",
     categories: ["Binod Chaudhary"],
     hasOverlay: false,
     nameText: {
@@ -190,7 +190,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame7",
     src: "/frames/frame_binod_4.png",
-    thumbSrc: "/frames/frame_binod_4.png",
+    thumbSrc: "/frames/thumbs/frame_binod_4.webp",
     categories: ["Binod Chaudhary"],
     hasOverlay: false,
     nameText: {
@@ -218,7 +218,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame8",
     src: "/frames/Congress Frame.png",
-    thumbSrc: "/frames/Congress Frame.png",
+    thumbSrc: "/frames/thumbs/Congress Frame.webp",
     categories: ["Chunna Poudel", "Binod Chaudhary"],
     hasOverlay: false,
     nameText: {
@@ -245,7 +245,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame9",
     src: "/frames/frame_chunnu_4.png",
-    thumbSrc: "/frames/frame_chunnu_4.png",
+    thumbSrc: "/frames/thumbs/frame_chunnu_4.webp",
     categories: ["Chunna Poudel"],
     hasOverlay: false,
     nameText: {
@@ -272,7 +272,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame10",
     src: "/frames/frame_chunnu_5.png",
-    thumbSrc: "/frames/frame_chunnu_5.png",
+    thumbSrc: "/frames/thumbs/frame_chunnu_5.webp",
     categories: ["Chunna Poudel", "Vote Chunnu"],
     hasOverlay: false,
     nameText: {
@@ -299,7 +299,7 @@ export const FRAMES: FrameConfig[] = [
   {
     id: "frame11",
     src: "/frames/frame_chunnu_6.png",
-    thumbSrc: "/frames/frame_chunnu_6.png",
+    thumbSrc: "/frames/thumbs/frame_chunnu_6.webp",
     categories: ["Chunna Poudel", "Vote Chunnu"],
     hasOverlay: false,
     nameText: {

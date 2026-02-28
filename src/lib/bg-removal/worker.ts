@@ -22,6 +22,11 @@ const HQ_NORMALIZE_STD = [1, 1, 1];
 
 ort.env.wasm.wasmPaths =
   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.1/dist/";
+ort.env.wasm.simd = true;
+ort.env.wasm.numThreads =
+  navigator.hardwareConcurrency > 1
+    ? Math.min(navigator.hardwareConcurrency, 4)
+    : 1;
 
 let modelSessionPromise: Promise<ort.InferenceSession> | null = null;
 let processorSessionPromise: Promise<ort.InferenceSession> | null = null;
@@ -31,6 +36,7 @@ const getModelSession = () => {
   if (!modelSessionPromise) {
     modelSessionPromise = ort.InferenceSession.create(ONNX_MODEL_PATH, {
       executionProviders: ["wasm"],
+      graphOptimizationLevel: "all",
     });
   }
   return modelSessionPromise;
@@ -40,6 +46,7 @@ const getProcessorSession = () => {
   if (!processorSessionPromise) {
     processorSessionPromise = ort.InferenceSession.create(ONNX_PROCESSOR_PATH, {
       executionProviders: ["wasm"],
+      graphOptimizationLevel: "all",
     });
   }
   return processorSessionPromise;
@@ -48,11 +55,18 @@ const getProcessorSession = () => {
 const getHighQualityModelSession = () => {
   if (!hqModelSessionPromise) {
     hqModelSessionPromise = ort.InferenceSession.create(HQ_MODEL_PATH, {
-      executionProviders: ["wasm"],
+      executionProviders: ["webgpu", "wasm"],
+      graphOptimizationLevel: "all",
     });
   }
   return hqModelSessionPromise;
 };
+
+// Pre-warm standard model sessions immediately when the worker loads.
+// This runs in the background while the user is still uploading their photo,
+// so by the time they click "Remove Background" the sessions are ready.
+getModelSession();
+getProcessorSession();
 
 const preprocessImage = (
   bitmap: ImageBitmap,
@@ -213,10 +227,32 @@ const getMaskDimensions = (tensor: ort.Tensor) => {
   return { height: HQ_IMAGE_HEIGHT, width: HQ_IMAGE_WIDTH };
 };
 
+const MAX_STD_INPUT_PX = 1024;
+
+const downscaleBitmap = async (
+  bitmap: ImageBitmap,
+  maxPx: number,
+): Promise<ImageBitmap> => {
+  const { width, height } = bitmap;
+  if (width <= maxPx && height <= maxPx) return bitmap;
+  const scale = maxPx / Math.max(width, height);
+  const w = Math.round(width * scale);
+  const h = Math.round(height * scale);
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return bitmap;
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  const scaled = await createImageBitmap(canvas);
+  bitmap.close();
+  return scaled;
+};
+
 const removeBackgroundStandard = async (photoSrc: string) => {
   const response = await fetch(photoSrc);
   const blob = await response.blob();
-  const bitmap = await createImageBitmap(blob);
+  const rawBitmap = await createImageBitmap(blob);
+  // Downscale before inference — model runs at 320×320 anyway
+  const bitmap = await downscaleBitmap(rawBitmap, MAX_STD_INPUT_PX);
 
   const [modelSession, processorSession] = await Promise.all([
     getModelSession(),
