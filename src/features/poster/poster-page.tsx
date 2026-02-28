@@ -33,6 +33,9 @@ import {
 } from "./hooks/use-poster-builder";
 import { useTransliteration } from "./hooks/use-transliteration";
 
+// Module-level set so we only fetch each frame once per page session
+const prefetchedFrames = new Set<string>();
+
 export function PosterPage() {
   const pb = usePosterBuilder();
   const translit = useTransliteration();
@@ -843,6 +846,13 @@ export function PosterPage() {
                   )}
                   key={frame.id}
                   onClick={() => pb.setFrameFn(frame.src)}
+                  onMouseEnter={() => {
+                    if (frame.src === pb.activeFrame) return;
+                    if (prefetchedFrames.has(frame.src)) return;
+                    prefetchedFrames.add(frame.src);
+                    const img = new Image();
+                    img.src = frame.src;
+                  }}
                   type="button"
                 >
                   <img
