@@ -39,10 +39,8 @@ const getWorker = () => {
   return worker;
 };
 
-// Boot the worker immediately on module import.
-// The worker's own top-level code will start pre-warming the ONNX sessions,
-// hiding model load time behind the user's natural think/upload time.
-getWorker();
+// Boot the worker only when actually needed
+// getWorker();
 
 export async function removeBackground(
   photoSrc: string,

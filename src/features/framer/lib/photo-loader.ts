@@ -12,7 +12,7 @@ interface PhotoLoaderHooks {
 
 export interface PhotoManager {
   handleSelection: (files: FileList | null) => void;
-  ensurePhotoReady: (photo: PhotoItem) => Promise<ImageBitmap>;
+  ensurePhotoReady: (photo: PhotoItem) => Promise<void>;
   groupPhotosByOrientation: () => Record<PreviewOrientation, PhotoItem[]>;
   getPhotos: () => PhotoItem[];
   getFrameBitmap: () => ImageBitmap | null;
@@ -30,8 +30,7 @@ export const createPhotoManager = (
   const cleanupPhotos = () => {
     for (const photo of state.photos) {
       URL.revokeObjectURL(photo.url);
-      photo.bitmap?.close();
-      photo.bitmapPromise = undefined;
+      photo.readyPromise = undefined;
     }
   };
 
@@ -67,7 +66,7 @@ export const createPhotoManager = (
 
       if (token !== currentToken) return;
 
-      const loaded = state.photos.filter((photo) => photo.bitmap).length;
+      const loaded = state.photos.filter((photo) => photo.width).length;
       const status =
         loaded === total
           ? `${total} photos ready`
@@ -83,21 +82,27 @@ export const createPhotoManager = (
   };
 
   const ensurePhotoReady = async (photo: PhotoItem) => {
-    if (photo.bitmap) return photo.bitmap;
+    if (photo.width && photo.height) return;
 
-    if (!photo.bitmapPromise) {
-      photo.bitmapPromise = createImageBitmap(photo.file).then((bitmap) => {
-        photo.bitmap = bitmap;
-        photo.orientation = getOrientationType(
-          bitmap.width,
-          bitmap.height,
-        ) as PreviewOrientation;
-        photo.bitmapPromise = undefined;
-        return bitmap;
+    if (!photo.readyPromise) {
+      photo.readyPromise = new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          photo.width = img.naturalWidth;
+          photo.height = img.naturalHeight;
+          photo.orientation = getOrientationType(
+            img.naturalWidth,
+            img.naturalHeight,
+          ) as PreviewOrientation;
+          photo.readyPromise = undefined;
+          resolve();
+        };
+        img.onerror = reject;
+        img.src = photo.url;
       });
     }
 
-    return photo.bitmapPromise;
+    return photo.readyPromise;
   };
 
   const groupPhotosByOrientation = () => {
@@ -115,9 +120,9 @@ export const createPhotoManager = (
     return grouped;
   };
 
-  const getPendingCount = () => state.photos.filter((p) => !p.bitmap).length;
+  const getPendingCount = () => state.photos.filter((p) => !p.width).length;
 
-  const anyReady = () => state.photos.some((p) => Boolean(p.bitmap));
+  const anyReady = () => state.photos.some((p) => Boolean(p.width));
 
   const clearAll = () => {
     cleanupPhotos();

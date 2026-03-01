@@ -51,7 +51,7 @@ export const handleDownload = async (
     return true;
   };
 
-  const photosData: Array<{ name: string; bitmap: ImageBitmap }> = [];
+  const photosData: Array<{ name: string; file: File }> = [];
 
   worker.onerror = () => {
     if (finalize("Export failed. Please try again.")) {
@@ -108,17 +108,13 @@ export const handleDownload = async (
 
   try {
     for (const photo of photos) {
-      const readyBitmap = await photoManager.ensurePhotoReady(photo);
-      const bitmap = await createImageBitmap(readyBitmap);
-      photosData.push({ name: photo.name, bitmap });
+      await photoManager.ensurePhotoReady(photo);
+      photosData.push({ name: photo.name, file: photo.file });
     }
 
     const frameBitmap = await createImageBitmap(currentFrameBitmap);
 
-    const transferables = [
-      frameBitmap,
-      ...photosData.map((photo) => photo.bitmap),
-    ];
+    const transferables = [frameBitmap];
 
     worker.postMessage(
       {
@@ -130,9 +126,7 @@ export const handleDownload = async (
       transferables,
     );
   } catch {
-    for (const photo of photosData) {
-      photo.bitmap.close();
-    }
+    // No bitmaps to close since we sent files
     if (finalize("Export failed while preparing images.")) {
       sileo.error({
         title: "Export Failed",

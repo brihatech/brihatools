@@ -139,16 +139,17 @@ export function FbFramePage() {
     widthPercent *= fb.scale;
     heightPercent *= fb.scale;
 
-    const left = 50 + fb.pan.x * 50;
-    const top = 50 + fb.pan.y * 50;
+    const translateX = -50 + (50 * fb.pan.x) / (widthPercent / 100);
+    const translateY = -50 + (50 * fb.pan.y) / (heightPercent / 100);
 
     return {
       position: "absolute",
       width: `${widthPercent}%`,
       height: `${heightPercent}%`,
-      left: `${left}%`,
-      top: `${top}%`,
-      transform: "translate(-50%, -50%)",
+      left: "50%",
+      top: "50%",
+      transform: `translate3d(${translateX}%, ${translateY}%, 0)`,
+      willChange: "transform",
       objectFit: "cover",
       pointerEvents: "none",
     };

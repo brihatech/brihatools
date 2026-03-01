@@ -22,9 +22,10 @@ export interface PhotoItem {
   file: File;
   name: string;
   url: string;
-  bitmap?: ImageBitmap;
+  width?: number;
+  height?: number;
   orientation?: PreviewOrientation;
-  bitmapPromise?: Promise<ImageBitmap>;
+  readyPromise?: Promise<void>;
 }
 
 export interface PreviewSettings {

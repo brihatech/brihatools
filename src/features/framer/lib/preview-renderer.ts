@@ -105,9 +105,10 @@ export const getPreviewState = ({
       state.previewIndex[type] = normalizedIndex;
       out.index = normalizedIndex;
       const matchedPhoto = matches[normalizedIndex];
-      const photoBitmap = matchedPhoto.bitmap;
+      const photoW = matchedPhoto.width;
+      const photoH = matchedPhoto.height;
 
-      if (!photoBitmap) {
+      if (!photoW || !photoH) {
         out.isLoading = true;
         out.meta = `Loading ${matchedPhoto.name}...`;
         continue;
@@ -117,7 +118,7 @@ export const getPreviewState = ({
       out.photoUrl = matchedPhoto.url;
       out.style = calculatePreviewStyle({
         frame: state.frame,
-        photo: photoBitmap,
+        photo: { width: photoW, height: photoH },
         settings: state.settings[type],
       });
       out.meta = `${matchedPhoto.name} • ${type} (${normalizedIndex + 1}/${matches.length})`;
@@ -125,8 +126,6 @@ export const getPreviewState = ({
       // Calculate max scale to prevent photo width from exceeding frame width
       const frameW = state.frame.naturalWidth;
       const frameH = state.frame.naturalHeight;
-      const photoW = photoBitmap.width;
-      const photoH = photoBitmap.height;
       const isPortrait = photoH > photoW;
 
       if (isPortrait) {
@@ -158,7 +157,7 @@ export const calculatePreviewStyle = ({
   settings,
 }: {
   frame: HTMLImageElement;
-  photo: ImageBitmap;
+  photo: { width: number; height: number };
   settings: CompositionSettings;
 }): CSSProperties => {
   const frameDims: Dimensions = {
@@ -186,18 +185,22 @@ export const calculatePreviewStyle = ({
   const panX = settings.pan.x * frameDims.width;
   const panY = settings.pan.y * frameDims.height;
 
-  // Convert to percentages
-  const left = ((centerX + panX) / frameDims.width) * 100;
-  const top = ((centerY + panY) / frameDims.height) * 100;
+  // Convert size to percentages
   const width = (targetWidth / frameDims.width) * 100;
   const height = (targetHeight / frameDims.height) * 100;
 
+  // Use translate3d to avoid layout reflows on drag
+  const translateX = ((centerX + panX) / targetWidth) * 100;
+  const translateY = ((centerY + panY) / targetHeight) * 100;
+
   return {
     position: "absolute",
-    left: `${left}%`,
-    top: `${top}%`,
+    left: 0,
+    top: 0,
     width: `${width}%`,
     height: `${height}%`,
+    transform: `translate3d(${translateX}%, ${translateY}%, 0)`,
+    willChange: "transform",
     objectFit: "fill",
     zIndex: 10,
     pointerEvents: "none",

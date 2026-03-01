@@ -4,6 +4,7 @@ import {
   Download,
   Italic,
   Minus,
+  Move,
   Plus,
   PlusCircleIcon,
   RotateCcw,
@@ -653,23 +654,10 @@ export function PosterPage() {
             {pb.hasPhoto && pb.photoSrc && (
               <div
                 className={cn(
-                  "absolute top-1/2 left-1/2 w-[35%] cursor-grab touch-none select-none",
+                  "pointer-events-none absolute top-1/2 left-1/2 w-[35%] touch-none select-none",
                   pb.selectedTextId === "photo" && "z-10",
                 )}
                 id="photoElement"
-                onPointerCancel={drag.onPhotoPointerUp}
-                onPointerDown={(e) => {
-                  drag.onPhotoPointerDown(e);
-                }}
-                onPointerLeave={drag.onPhotoPointerUp}
-                onPointerMove={drag.onPhotoPointerMove}
-                onPointerUp={(e) => {
-                  drag.onPhotoPointerUp(e);
-                  pb.setSelectedTextId("photo");
-                }}
-                onTouchEnd={isPhotoSelected ? pinch.onTouchEnd : undefined}
-                onTouchMove={isPhotoSelected ? pinch.onTouchMove : undefined}
-                onTouchStart={isPhotoSelected ? pinch.onTouchStart : undefined}
                 style={{
                   transform: `translate(-50%, -50%) translate(${pb.offsetX}px, ${pb.offsetY}px) scale(${pb.scale})`,
                 }}
@@ -681,6 +669,30 @@ export function PosterPage() {
                   ref={pb.photoImageRef}
                   src={pb.photoSrc}
                 />
+
+                {/* Interactive Drag Proxy */}
+                <div
+                  className="pointer-events-auto absolute top-1/2 left-1/2 z-40 flex size-12 -translate-x-1/2 -translate-y-1/2 cursor-grab items-center justify-center rounded-full bg-background/90 text-foreground opacity-80 shadow-md backdrop-blur-md transition-opacity hover:opacity-100"
+                  onPointerCancel={drag.onPhotoPointerUp}
+                  onPointerDown={(e) => {
+                    drag.onPhotoPointerDown(e);
+                  }}
+                  onPointerLeave={drag.onPhotoPointerUp}
+                  onPointerMove={drag.onPhotoPointerMove}
+                  onPointerUp={(e) => {
+                    drag.onPhotoPointerUp(e);
+                    pb.setSelectedTextId("photo");
+                  }}
+                  onTouchEnd={isPhotoSelected ? pinch.onTouchEnd : undefined}
+                  onTouchMove={isPhotoSelected ? pinch.onTouchMove : undefined}
+                  onTouchStart={
+                    isPhotoSelected ? pinch.onTouchStart : undefined
+                  }
+                  title="Drag to move photo"
+                >
+                  <Move className="size-5" />
+                </div>
+
                 <Handles
                   elementId="photoElement"
                   isActive={isPhotoSelected}

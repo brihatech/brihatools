@@ -11,7 +11,7 @@ interface RenderJob {
   frame: ImageBitmap;
   photos: Array<{
     name: string;
-    bitmap: ImageBitmap;
+    file: File;
   }>;
   settings: {
     portrait: { scale: number; pan: { x: number; y: number } };
@@ -48,9 +48,11 @@ self.onmessage = async (e: MessageEvent<RenderJob>) => {
       total: photos.length,
     });
 
+    const bitmap = await createImageBitmap(photo.file);
+
     const photoDims = {
-      width: photo.bitmap.width,
-      height: photo.bitmap.height,
+      width: bitmap.width,
+      height: bitmap.height,
     };
 
     const orientationType: OrientationType = getOrientationType(
@@ -91,7 +93,7 @@ self.onmessage = async (e: MessageEvent<RenderJob>) => {
 
     // Draw photo (never downscaled)
     ctx.drawImage(
-      photo.bitmap,
+      bitmap,
       centerX + panX,
       centerY + panY,
       targetWidth,
@@ -107,7 +109,7 @@ self.onmessage = async (e: MessageEvent<RenderJob>) => {
     zip.file(`${photo.name.replace(/\.[^/.]+$/, "")}-framed.png`, blob);
 
     // Free memory
-    photo.bitmap.close();
+    bitmap.close();
   }
 
   // Free frame bitmap

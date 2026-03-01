@@ -5,6 +5,7 @@ import {
   ImagePlus,
   Images,
   Loader2,
+  Move,
   RotateCcw,
   X,
 } from "lucide-react";
@@ -470,7 +471,7 @@ function PreviewPanel({
     const max = maxScale ? Math.min(5, maxScale) : 5;
     return Math.max(0.1, Math.min(max, value));
   };
-  const pinch = usePinch(
+  const _pinch = usePinch(
     scale,
     (v) => onScaleChange(clampScale(v)),
     canInteract,
@@ -629,22 +630,27 @@ function PreviewPanel({
                 <div
                   className={cn(
                     "pointer-events-auto absolute touch-none border-2 border-primary shadow-sm",
-                    canInteract && "cursor-grab active:cursor-grabbing",
                   )}
                   onLostPointerCapture={onTransformLostPointerCapture}
                   onPointerCancel={onTransformPointerEnd}
                   onPointerDown={onPanPointerDown}
                   onPointerMove={onTransformPointerMove}
                   onPointerUp={onTransformPointerEnd}
-                  onTouchEnd={pinch.onTouchEnd}
-                  onTouchMove={pinch.onTouchMove}
-                  onTouchStart={pinch.onTouchStart}
+                  onTouchEnd={_pinch.onTouchEnd}
+                  onTouchMove={_pinch.onTouchMove}
+                  onTouchStart={_pinch.onTouchStart}
                   style={{
                     ...photoStyle,
-                    pointerEvents: "auto",
+                    cursor: "grab",
                     zIndex: 20,
+                    pointerEvents: "auto",
                   }}
+                  title="Drag to move photo"
                 >
+                  {/* Visual move icon — decorative only, interaction handled by parent */}
+                  <div className="pointer-events-none absolute top-1/2 left-1/2 z-30 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-foreground opacity-80 shadow-md backdrop-blur-md transition-opacity">
+                    <Move className="size-5" />
+                  </div>
                   {/* Interactive Handles */}
                   {[
                     {
