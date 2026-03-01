@@ -24,6 +24,7 @@ interface FbFrameState {
   scale: number;
   pan: { x: number; y: number };
   isExporting: boolean;
+  showFacebookPrompt: boolean;
   removeBgBusy: boolean;
   removeBgQuality: BackgroundRemovalQuality;
 }
@@ -66,6 +67,7 @@ export function useFbFrame() {
     scale: 1,
     pan: { x: 0, y: 0 },
     isExporting: false,
+    showFacebookPrompt: false,
     removeBgBusy: false,
     removeBgQuality: "standard",
   });
@@ -296,6 +298,8 @@ export function useFbFrame() {
         title: "Export Complete",
         description: "Framed profile photo downloaded as JPG.",
       });
+
+      setState((prev) => ({ ...prev, showFacebookPrompt: true }));
     } catch (error) {
       logError("fb_frame.export.failed", error, {
         feature: "fb-frame",
@@ -313,6 +317,61 @@ export function useFbFrame() {
   const hasFrame = Boolean(state.selectedFrame);
   const canExport = hasPhoto && hasFrame && !state.isExporting;
 
+  const closeFacebookPrompt = useCallback(() => {
+    setState((prev) => ({ ...prev, showFacebookPrompt: false }));
+  }, []);
+
+  const openFacebookProfilePage = useCallback(() => {
+    const userAgent = navigator.userAgent;
+    const isAndroid = /Android/i.test(userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+    const isMobileDevice =
+      isAndroid ||
+      isIOS ||
+      /Mobile|IEMobile|Opera Mini/i.test(userAgent) ||
+      window.matchMedia("(max-width: 768px)").matches;
+
+    const facebookProfileUrl = isMobileDevice
+      ? "https://m.facebook.com/me"
+      : "https://facebook.com/me";
+
+    if (!isMobileDevice) {
+      window.open(facebookProfileUrl, "_blank", "noopener,noreferrer");
+      setState((prev) => ({ ...prev, showFacebookPrompt: false }));
+      return;
+    }
+
+    let fallbackTriggered = false;
+    const fallbackToWeb = () => {
+      if (fallbackTriggered) return;
+      fallbackTriggered = true;
+      window.open(facebookProfileUrl, "_blank", "noopener,noreferrer");
+    };
+
+    const fallbackTimer = window.setTimeout(fallbackToWeb, 900);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        window.clearTimeout(fallbackTimer);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    if (isAndroid) {
+      window.location.href =
+        "intent://profile#Intent;scheme=fb;package=com.facebook.katana;end";
+    } else {
+      window.location.href = "fb://profile";
+    }
+
+    window.setTimeout(() => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.clearTimeout(fallbackTimer);
+    }, 3000);
+
+    setState((prev) => ({ ...prev, showFacebookPrompt: false }));
+  }, []);
+
   return {
     frames: filteredFrames,
     selectedFrame: state.selectedFrame,
@@ -325,6 +384,7 @@ export function useFbFrame() {
     isExporting: state.isExporting,
     removeBgBusy: state.removeBgBusy,
     removeBgQuality: state.removeBgQuality,
+    showFacebookPrompt: state.showFacebookPrompt,
     hasPhoto,
     hasFrame,
     canExport,
@@ -335,6 +395,8 @@ export function useFbFrame() {
     setPan,
     resetTransform,
     exportImage,
+    closeFacebookPrompt,
+    openFacebookProfilePage,
     removeBackground,
     setRemoveBgQuality,
     canvasRef,
