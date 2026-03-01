@@ -110,18 +110,18 @@ const drawRoundedRect = (
   ctx.closePath();
 };
 
-const downloadCanvasPng = async (canvas: HTMLCanvasElement, name: string) => {
+const downloadCanvasImage = async (canvas: HTMLCanvasElement, name: string) => {
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (b) => {
         if (!b) {
-          reject(new Error("Failed to create PNG blob"));
+          reject(new Error("Failed to create JPEG blob"));
           return;
         }
         resolve(b);
       },
-      "image/png",
-      1,
+      "image/jpeg",
+      0.92,
     );
   });
 
@@ -173,9 +173,25 @@ export async function generatePoster(config: PosterConfig) {
     photoSrc,
   } = config;
 
-  await frameImage.decode();
+  const loadImgSecurely = async (imgElement: HTMLImageElement) => {
+    const freshImg = new Image();
+    freshImg.crossOrigin = "anonymous";
+    freshImg.src = imgElement.src;
+    await new Promise((resolve, reject) => {
+      if (freshImg.complete) resolve(null);
+      else {
+        freshImg.onload = () => resolve(null);
+        freshImg.onerror = reject;
+      }
+    });
+    return freshImg;
+  };
+
+  const safeFrameImage = await loadImgSecurely(frameImage);
+  let safePhotoImage: HTMLImageElement | undefined;
+
   if (hasPhoto && photoImage && photoSrc) {
-    await photoImage.decode();
+    safePhotoImage = await loadImgSecurely(photoImage);
   }
 
   const stageRect = stage.getBoundingClientRect();
@@ -183,7 +199,7 @@ export async function generatePoster(config: PosterConfig) {
     throw new Error("Stage has no size");
   }
 
-  if (!frameImage.naturalWidth || !frameImage.naturalHeight) {
+  if (!safeFrameImage.naturalWidth || !safeFrameImage.naturalHeight) {
     throw new Error("Frame image not ready");
   }
 
@@ -203,35 +219,36 @@ export async function generatePoster(config: PosterConfig) {
     frameRectStage = computeContainedRect(
       stageRect.width,
       stageRect.height,
-      frameImage.naturalWidth,
-      frameImage.naturalHeight,
+      safeFrameImage.naturalWidth,
+      safeFrameImage.naturalHeight,
     );
   }
 
   const canvas = document.createElement("canvas");
-  canvas.width = frameImage.naturalWidth;
-  canvas.height = frameImage.naturalHeight;
+  canvas.width = safeFrameImage.naturalWidth;
+  canvas.height = safeFrameImage.naturalHeight;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     throw new Error("Unable to create canvas context.");
   }
 
-  ctx.clearRect(0, 0, frameImage.naturalWidth, frameImage.naturalHeight);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, safeFrameImage.naturalWidth, safeFrameImage.naturalHeight);
 
   ctx.drawImage(
-    frameImage,
+    safeFrameImage,
     0,
     0,
-    frameImage.naturalWidth,
-    frameImage.naturalHeight,
+    safeFrameImage.naturalWidth,
+    safeFrameImage.naturalHeight,
   );
 
-  const sx = frameImage.naturalWidth / frameRectStage.width;
-  const sy = frameImage.naturalHeight / frameRectStage.height;
+  const sx = safeFrameImage.naturalWidth / frameRectStage.width;
+  const sy = safeFrameImage.naturalHeight / frameRectStage.height;
 
   // Photo: read actual DOM position instead of recomputing from offsets
-  if (hasPhoto && photoImage && photoSrc) {
-    const photoContainer = photoImage.parentElement;
+  if (hasPhoto && safePhotoImage && photoSrc) {
+    const photoContainer = photoImage?.parentElement;
     if (photoContainer) {
       const pRect = photoContainer.getBoundingClientRect();
       const centerXStage = pRect.left + pRect.width / 2 - stageRect.left;
@@ -243,7 +260,7 @@ export async function generatePoster(config: PosterConfig) {
       const heightFrame = pRect.height * sy;
 
       ctx.drawImage(
-        photoImage,
+        safePhotoImage,
         centerXFrame - widthFrame / 2,
         centerYFrame - heightFrame / 2,
         widthFrame,
@@ -252,8 +269,8 @@ export async function generatePoster(config: PosterConfig) {
     }
   }
 
-  const frameW = frameImage.naturalWidth;
-  const frameH = frameImage.naturalHeight;
+  const frameW = safeFrameImage.naturalWidth;
+  const frameH = safeFrameImage.naturalHeight;
 
   const safeName = fullName.trim();
 
@@ -341,8 +358,15 @@ export async function generatePoster(config: PosterConfig) {
 
   if (hasOverlay && overlaySrc) {
     const overlayImage = new Image();
+    overlayImage.crossOrigin = "anonymous";
     overlayImage.src = overlaySrc;
-    await overlayImage.decode();
+    await new Promise((resolve) => {
+      if (overlayImage.complete) resolve(null);
+      else {
+        overlayImage.onload = () => resolve(null);
+        overlayImage.onerror = () => resolve(null);
+      }
+    });
     ctx.drawImage(overlayImage, 0, 0, frameW, frameH);
   }
 
@@ -380,5 +404,5 @@ export async function generatePoster(config: PosterConfig) {
     }
   }
 
-  await downloadCanvasPng(canvas, "poster.png");
+  await downloadCanvasImage(canvas, "poster.jpg");
 }
