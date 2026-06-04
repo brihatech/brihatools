@@ -31,6 +31,13 @@ const TOOLS = [
     icon: FileText,
     title: "PDF Extractor",
   },
+  {
+    category: "documents",
+    description: "Enter Bansawali data",
+    href: "/bansawali-data-entry",
+    icon: FileText,
+    title: "Bansawali Entry",
+  },
 ] as const;
 
 const CATEGORIES = [

@@ -28,6 +28,12 @@ const FbFramePage = lazy(() =>
   })),
 );
 
+const Bansawali = lazy(() =>
+  import("./features/bansawali-data-entry/src/entry-page").then((module) => ({
+    default: module.BamsawaliEntryPage,
+  })),
+);
+
 function RouteFallback() {
   return (
     <main className="flex flex-1 items-center justify-center p-6">
@@ -73,6 +79,14 @@ function AppRoutes() {
           </Suspense>
         }
         path="/fb-frame"
+      />
+      <Route
+        element={
+          <Suspense fallback={<RouteFallback />}>
+            <Bansawali />
+          </Suspense>
+        }
+        path="/bansawali-data-entry"
       />
     </Routes>
   );
